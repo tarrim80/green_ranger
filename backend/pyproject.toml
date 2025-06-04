@@ -22,4 +22,5 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
+debugpy = "^1.8.14"
 

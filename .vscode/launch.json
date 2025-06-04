@@ -16,6 +16,22 @@
             "jinja": true,
             "justMyCode": true,
             "console": "internalConsole"
+        },
+        {
+            "name": "Python: Docker Attach (backend)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/backend",
+                    "remoteRoot": "/app"
+                }
+            ],
+            "justMyCode": true
         }
     ]
 }
