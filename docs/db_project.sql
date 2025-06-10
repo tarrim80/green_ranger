@@ -1,118 +1,109 @@
--- === Группы пользователей ===
-CREATE TABLE IF NOT EXISTS "group" (
-	"id" serial PRIMARY KEY,
-	"name" varchar(50) NOT NULL UNIQUE
-);
-
--- === Пользователи ===
 CREATE TABLE IF NOT EXISTS "user" (
-	"id" serial PRIMARY KEY,
+	"id" serial NOT NULL,
 	"name" varchar(50),
 	"surname" varchar(50),
 	"tg_id" bigint NOT NULL UNIQUE,
 	"email" varchar(50) UNIQUE,
 	"is_admin" boolean NOT NULL DEFAULT false,
-	"is_leader" boolean NOT NULL DEFAULT false,
-	"group" bigint NOT NULL REFERENCES "group"("id"),
-	"register_at" date NOT NULL
+	"register_at" timestamp with time zone NOT NULL,
+	PRIMARY KEY ("id")
 );
 
--- === Секторы ===
-CREATE TABLE IF NOT EXISTS "sector" (
-	"id" serial PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS "team" (
+	"id" serial NOT NULL,
 	"name" varchar(50) NOT NULL UNIQUE,
-	"curator" bigint NOT NULL REFERENCES "user"("id"),
-	"color" varchar(7) NOT NULL DEFAULT '#000000'
+	"leader_id" bigint NOT NULL,
+	PRIMARY KEY ("id")
 );
 
--- === Связь сектор-группа (многие-ко-многим) ===
-CREATE TABLE IF NOT EXISTS "sector_group" (
-	"id" serial PRIMARY KEY,
-	"sector" bigint NOT NULL REFERENCES "sector"("id"),
-	"group" bigint NOT NULL REFERENCES "group"("id")
+CREATE TABLE IF NOT EXISTS "sector" (
+	"id" serial NOT NULL,
+	"name" varchar(50) NOT NULL UNIQUE,
+	"curator_id" bigint NOT NULL,
+	"color" varchar(7) NOT NULL DEFAULT '#000000',
+	"geometry" geometry NOT NULL UNIQUE,
+	"team_id" bigint NOT NULL,
+	PRIMARY KEY ("id")
 );
 
--- === Справочник состояний дерева ===
-CREATE TABLE IF NOT EXISTS "tree_condition" (
-	"id" serial PRIMARY KEY,
-	"name" varchar(50) NOT NULL UNIQUE
-);
-
--- === Справочник статусов тикета ===
-CREATE TABLE IF NOT EXISTS "ticket_status" (
-	"id" serial PRIMARY KEY,
-	"name" varchar(50) NOT NULL UNIQUE
-);
-
--- === Основная таблица тикетов (деревья) ===
 CREATE TABLE IF NOT EXISTS "ticket" (
-	"id" serial PRIMARY KEY,
+	"id" serial NOT NULL,
 	"planting" varchar(50),
-	"breed" varchar(50),
+	"species" varchar(50),
 	"description" varchar(255),
 	"age" bigint,
-	"height" bigint,
-	"diameter" bigint,
-	"trunk_count" bigint NOT NULL DEFAULT 1,
-	"condition_id" bigint NOT NULL REFERENCES "tree_condition"("id"),
-	"long" double precision NOT NULL,
-	"lat" double precision NOT NULL,
-	"azimuth" bigint,
-	"dist" bigint,
-	"sector" bigint NOT NULL REFERENCES "sector"("id"),
+	"height" varchar(255),
+	"diameter" varchar(255),
+	"trunk_count" bigint NOT NULL DEFAULT '1',
+	"condition" varchar(255) NOT NULL,
+	"location" geometry NOT NULL,
+	"azimuth" varchar(255),
+	"dist" varchar(255),
+	"sector_id" bigint NOT NULL,
+	"curator_id" bigint NOT NULL,
+	"ticket_status" varchar(255) NOT NULL,
 	"emergency" boolean NOT NULL DEFAULT false,
-	"author" bigint NOT NULL REFERENCES "user"("id"),
-	"status_id" bigint NOT NULL REFERENCES "ticket_status"("id"),
-	"created_at" date NOT NULL,
-	"updated_at" date NOT NULL
+	"author" bigint NOT NULL,
+	"created_at" timestamp with time zone NOT NULL,
+	"updated_at" timestamp with time zone NOT NULL,
+	PRIMARY KEY ("id")
 );
 
--- === Справочник повреждений ===
-CREATE TABLE IF NOT EXISTS "damage" (
-	"id" serial PRIMARY KEY,
-	"name" varchar(50) NOT NULL UNIQUE,
-	"description" varchar(255)
-);
-
--- === Связь тикета и повреждения (многие-ко-многим) ===
-CREATE TABLE IF NOT EXISTS "ticket_damage" (
-	"id" serial PRIMARY KEY,
-	"status" bigint NOT NULL,
-	"ticket" bigint NOT NULL REFERENCES "ticket"("id"),
-	"damage" bigint NOT NULL REFERENCES "damage"("id")
-);
-
--- === Фото повреждений (привязка к ticket_damage) ===
 CREATE TABLE IF NOT EXISTS "photo" (
-	"id" serial PRIMARY KEY,
-	"ticket_damage" bigint NOT NULL REFERENCES "ticket_damage"("id"),
-	"image" bytea NOT NULL UNIQUE,
-	"lat" double precision,
-	"long" double precision
-	-- Дополнительно можно: filename, mimetype, created_at
+	"id" serial NOT NULL,
+	"file_path" varchar(255) NOT NULL,
+	"uploaded_at" timestamp with time zone NOT NULL,
+	PRIMARY KEY ("id")
 );
 
--- === Галерея обучающих изображений ===
-CREATE TABLE IF NOT EXISTS "training_gallery" (
-	"id" serial PRIMARY KEY,
-	"trauma" bigint NOT NULL REFERENCES "damage"("id"),
-	"photo" bytea NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS "damage" (
+	"id" serial NOT NULL,
+	"name" varchar(50) NOT NULL UNIQUE,
+	"description" varchar(255),
+	PRIMARY KEY ("id")
 );
 
--- === Контрольные точки по секторам ===
-CREATE TABLE IF NOT EXISTS "point" (
-	"id" serial PRIMARY KEY,
-	"lat" double precision NOT NULL,
-	"long" double precision NOT NULL,
-	"sector" bigint NOT NULL REFERENCES "sector"("id")
+CREATE TABLE IF NOT EXISTS "ticket_damage" (
+	"id" serial NOT NULL,
+	"damage_status" varchar(255) NOT NULL,
+	"ticket_id" bigint NOT NULL,
+	"damage_id" bigint NOT NULL,
+	"description" varchar(255),
+	PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "ticket_photo" (
+	"id" serial NOT NULL UNIQUE,
+	"ticket_id" bigint NOT NULL,
+	"photo_id" bigint NOT NULL,
+	PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "ticket_damage_photo" (
+	"id" serial NOT NULL UNIQUE,
+	"ticket_damage_id" bigint NOT NULL,
+	"photo_id" bigint NOT NULL,
+	PRIMARY KEY ("id")
 );
 
 
+ALTER TABLE "team" ADD CONSTRAINT "team_fk2" FOREIGN KEY ("leader_id") REFERENCES "user"("id");
+ALTER TABLE "sector" ADD CONSTRAINT "sector_fk2" FOREIGN KEY ("curator_id") REFERENCES "user"("id");
 
-CREATE INDEX idx_ticket_sector ON ticket(sector);
-CREATE INDEX idx_ticket_author ON ticket(author);
-CREATE INDEX idx_ticket_status ON ticket(status_id);
-CREATE INDEX idx_ticket_condition ON ticket(condition_id);
-CREATE INDEX idx_ticket_damage_ticket ON ticket_damage(ticket);
-CREATE INDEX idx_ticket_damage_damage ON ticket_damage(damage);
-CREATE INDEX idx_photo_ticket_damage ON photo(ticket_damage);
+ALTER TABLE "sector" ADD CONSTRAINT "sector_fk5" FOREIGN KEY ("team_id") REFERENCES "team"("id");
+ALTER TABLE "ticket" ADD CONSTRAINT "ticket_fk12" FOREIGN KEY ("sector_id") REFERENCES "sector"("id");
+
+ALTER TABLE "ticket" ADD CONSTRAINT "ticket_fk13" FOREIGN KEY ("curator_id") REFERENCES "user"("id");
+
+ALTER TABLE "ticket" ADD CONSTRAINT "ticket_fk16" FOREIGN KEY ("author") REFERENCES "user"("id");
+
+
+ALTER TABLE "ticket_damage" ADD CONSTRAINT "ticket_damage_fk2" FOREIGN KEY ("ticket_id") REFERENCES "ticket"("id");
+
+ALTER TABLE "ticket_damage" ADD CONSTRAINT "ticket_damage_fk3" FOREIGN KEY ("damage_id") REFERENCES "damage"("id");
+ALTER TABLE "ticket_photo" ADD CONSTRAINT "ticket_photo_fk1" FOREIGN KEY ("ticket_id") REFERENCES "ticket"("id");
+
+ALTER TABLE "ticket_photo" ADD CONSTRAINT "ticket_photo_fk2" FOREIGN KEY ("photo_id") REFERENCES "photo"("id");
+ALTER TABLE "ticket_damage_photo" ADD CONSTRAINT "ticket_damage_photo_fk1" FOREIGN KEY ("ticket_damage_id") REFERENCES "ticket_damage"("id");
+
+ALTER TABLE "ticket_damage_photo" ADD CONSTRAINT "ticket_damage_photo_fk2" FOREIGN KEY ("photo_id") REFERENCES "photo"("id");
