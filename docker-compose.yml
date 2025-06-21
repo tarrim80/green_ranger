@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   backend:
@@ -6,11 +5,35 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: gr_backend_dev_container
+    env_file: ./backend/.env
+    networks:
+      - gr_network
     volumes:
       - ./backend:/app
+    depends_on:
+      - db
     ports:
       - "8000:8000"
       - "5678:5678"
-    command: 
-      sh -c "pip install debugpy -t /tmp &&
-             python /tmp/debugpy --wait-for-client --listen 0.0.0.0:5678 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: >
+      sh -c "python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: gr_db_dev_container
+    env_file: ./backend/.env
+    networks:
+      - gr_network
+    ports:
+      - "5432:5432"
+    volumes:
+      - gr_pg_data:/var/lib/postgresql/data
+    restart: always
+
+
+volumes:
+  gr_pg_data:
+
+networks:
+  gr_network:
+    name: green_ranger_network
