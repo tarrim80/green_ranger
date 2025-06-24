@@ -1,0 +1,10 @@
+from app.models.base import Base  # noqa
+from app.models.defect_type import DefectType  # noqa
+from app.models.photo import Photo  # noqa
+from app.models.role import Role  # noqa
+from app.models.sector import Sector  # noqa
+from app.models.survey import Survey  # noqa
+from app.models.survey_defect import SurveyDefect  # noqa
+from app.models.team import Team  # noqa
+from app.models.tree import Tree  # noqa
+from app.models.user import User  # noqa

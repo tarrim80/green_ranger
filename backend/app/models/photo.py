@@ -1,0 +1,49 @@
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models import Base
+from app.models.mixins.int_id_pk import IntIdPkMixin
+
+if TYPE_CHECKING:
+    from app.models import DefectType, Survey, SurveyDefect
+
+
+class Photo(
+    IntIdPkMixin,
+    Base,
+):
+    """Модель фотографий"""
+
+    file_path: Mapped[str] = mapped_column(
+        String(255),
+        comment="Путь к файлу изображения на сервере",
+    )
+    uploaded_at: Mapped[DateTime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        comment="Дата и время загрузки фото",
+    )
+    defect_type_id: Mapped[int | None] = mapped_column(
+        ForeignKey("defect_type.id"),
+        comment="ID вида дефекта",
+    )
+    defect_type_image: Mapped["DefectType"] = relationship(
+        "DefectType", back_populates="images"
+    )
+    survey_id: Mapped[int | None] = mapped_column(
+        ForeignKey("survey.id"),
+        comment="ID обследования",
+    )
+    tree_photo: Mapped["Survey"] = relationship(
+        "Survey", back_populates="tree_photos"
+    )
+    survey_defect_id: Mapped[int | None] = mapped_column(
+        ForeignKey("survey_defect.id"),
+        comment="ID конкретного дефекта",
+    )
+    survey_defect_photo: Mapped["SurveyDefect"] = relationship(
+        "SurveyDefect",
+        back_populates="photos",
+    )

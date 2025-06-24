@@ -1,0 +1,48 @@
+from typing import TYPE_CHECKING
+
+from geoalchemy2 import Geometry
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models import Base
+from app.models.mixins.int_id_pk import IntIdPkMixin
+
+if TYPE_CHECKING:
+    from app.models import Team, Tree, User
+
+
+class Sector(
+    IntIdPkMixin,
+    Base,
+):
+    """Модель учетного участка."""
+
+    name: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        comment="Название или номер участка",
+    )
+    curator_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id"),
+        comment="ID куратора участка",
+    )
+    curator: Mapped["User"] = relationship(
+        "User", back_populates="curated_sectors"
+    )
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("team.id"),
+        comment="ID команды, назначенной на участок",
+    )
+    team: Mapped["Team"] = relationship("Team", back_populates="sectors")
+    color: Mapped[str] = mapped_column(
+        String(7),
+        default="#000000",
+        server_default="#000000",
+        comment="Цвет для отображения участка на карте (HEX)",
+    )
+    geometry: Mapped[Geometry] = mapped_column(
+        Geometry("POLYGON", srid=4326),
+        comment="Геометрия (полигон) участка",
+    )
+
+    trees: Mapped[list["Tree"]] = relationship("Tree", back_populates="sector")
