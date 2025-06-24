@@ -165,7 +165,7 @@ poetry.toml
 docs/~$*
 
 # Temp files
-tmp
+tmp/
 
 # Dev Container
 .devcontainer
