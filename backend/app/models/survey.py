@@ -41,7 +41,7 @@ class Survey(
     is_emergency_report: Mapped[bool] = mapped_column(
         default=False, server_default="False", comment="Потенциально опасное"
     )
-    notes: Mapped[str | None] = mapped_column(Text(), comment="Примечание")
+    note: Mapped[str | None] = mapped_column(Text(), comment="Примечание")
     survey_status: Mapped[SurveyStatusEnum] = mapped_column(
         ENUM(SurveyStatusEnum, name="survey_status_enum"),
         default=SurveyStatusEnum.ON_REVIEW,
