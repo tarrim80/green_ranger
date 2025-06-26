@@ -1,14 +1,13 @@
 """Импорты класса Base и всех моделей для Alembic."""
 
-from app.core.db import Base
 from app.models import (
-    Defect,
-    Photo,
+    Base,
+    DefectType,
+    Role,
     Sector,
+    Survey,
+    SurveyDefect,
     Team,
-    Ticket,
-    TicketDefect,
-    TicketDefectPhoto,
-    TicketPhoto,
+    Tree,
     User,
 )
