@@ -29,6 +29,15 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         )
         return result.scalars().all()
 
+    async def get_by_ids(self, ids: list[int]) -> list[TModel]:
+        """Получает объекты по списку их ID."""
+        if not ids:
+            return []
+        result = await self.session.execute(
+            statement=select(self.model).where(self.model.id.in_(ids))  # type: ignore
+        )
+        return list(result.scalars().all())
+
     async def create(self, obj_in: TCreate) -> TModel:
         obj = self.model(**obj_in.model_dump())
         self.session.add(instance=obj)
