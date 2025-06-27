@@ -34,6 +34,7 @@ class User(SQLAlchemyBaseUserTable[int], IntIdPkMixin, Base):  # type: ignore
     team_id: Mapped[int | None] = mapped_column(ForeignKey("team.id"))
     team: Mapped[Team] = relationship(
         "Team",
+        foreign_keys=[team_id],
         back_populates="members",
     )
 
