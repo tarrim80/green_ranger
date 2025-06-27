@@ -33,7 +33,10 @@ router.include_router(
 
 
 @router.get(
-    "/users", response_model=list[UserShortRead], tags=["Пользователи"]
+    "/users",
+    response_model=list[UserShortRead],
+    tags=["Пользователи"],
+    description="Список пользователей в кратком виде.",
 )
 async def list_users(
     session: AsyncSession = Depends(get_async_session),
