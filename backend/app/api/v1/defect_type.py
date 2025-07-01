@@ -2,10 +2,11 @@ from fastapi import Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.routing import APIRouter
 
 from app.core.constants import ExceptionDetails
-from app.core.exceptions import DefectTypeCreationError
+from app.core.exceptions import DefectTypeCreationError, PhotoCreationError
 from app.repositories import DefectTypeRepository
-from app.schemas import DefectTypeRead, DefectTypeUpdate
+from app.schemas import DefectTypeRead, DefectTypeUpdate, PhotoRead
 from app.services.defect_type_service import DefectTypeService
+from app.services.photo_service import PhotoService
 
 router = APIRouter()
 
@@ -68,6 +69,32 @@ async def create_defect_type(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
+        )
+
+
+@router.post(
+    path="/{defect_type_id}/images",
+    response_model=list[PhotoRead],
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавление избражений к виду дефекта",
+    description="Загружает одно или несколько изображений \
+        и привязывает их к существующему виду дефекта.",
+)
+async def add_images_to_defect_type(
+    defect_type_id: int,
+    files: list[UploadFile],
+    service: PhotoService = Depends(),
+) -> list[PhotoRead]:
+    try:
+        images = await service.upload_and_link_photos(
+            files=files,
+            defect_type_id=defect_type_id,
+        )
+        return [PhotoRead.model_validate(image) for image in images]
+    except PhotoCreationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"{ExceptionDetails.FAILED_CREATE_PHOTO} {e}",
         )
 
 
