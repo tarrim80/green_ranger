@@ -45,6 +45,13 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         await self.session.refresh(instance=obj)
         return obj
 
+    async def create_many(self, objs_in: list[TCreate]) -> list[TModel]:
+        db_objs = [self.model(**obj_in.model_dump()) for obj_in in objs_in]
+
+        self.session.add_all(instances=db_objs)
+        await self.session.commit()
+        return db_objs
+
     async def update(self, db_obj: TModel, obj_in: TUpdate) -> TModel:
         obj_data = obj_in.model_dump(exclude_unset=True)
         for field, value in obj_data.items():
