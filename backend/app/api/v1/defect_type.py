@@ -30,7 +30,7 @@ async def get_all_defect_types(
     path="/{defect_type_id}",
     response_model=DefectTypeRead,
     summary="Получение вида дефекта",
-    description="Показывает вид дефекта идентификатору (id).",
+    description="Показывает вид дефекта по идентификатору (id).",
 )
 async def get_defect_type(
     defect_type_id: int, repo: DefectTypeRepository = Depends()
@@ -77,7 +77,7 @@ async def create_defect_type(
     summary="Изменение вида дефекта",
     description="Изменяет поля записи вида дефекта по идентификатору (id).",
 )
-async def defect_type_update(
+async def update_defect_type(
     defect_type_id: int,
     defect_type_in: DefectTypeUpdate,
     repo: DefectTypeRepository = Depends(),
@@ -102,7 +102,7 @@ async def defect_type_update(
     summary="Удаление вида дефекта",
     description="Удаляет вид дефекта по идентификатору (id).",
 )
-async def defect_type_delete(
+async def delete_defect_type(
     defect_type_id: int, service: DefectTypeService = Depends()
 ) -> None:
     if not await service.delete_with_photos(defect_type_id=defect_type_id):
