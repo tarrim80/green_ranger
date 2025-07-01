@@ -4,12 +4,11 @@ from fastapi import Depends, UploadFile
 from sqlalchemy.exc import IntegrityError
 
 from app.core.constants import ExceptionDetails
-from app.core.exceptions import DefectTypeCreationError, NotFoundError
+from app.core.exceptions import DefectTypeCreationError
 from app.models import DefectType, Photo
 from app.repositories.defect_type import DefectTypeRepository
+from app.services.photo_service import PhotoService
 from app.services.photo_uploader import save_uploaded_images
-
-from .photo_service import PhotoService
 
 
 class DefectTypeService:
