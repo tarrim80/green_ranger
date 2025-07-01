@@ -10,6 +10,10 @@ class DefectTypeCreationError(AppException):
     pass
 
 
+class SurveyDefectCreationError(AppException):
+    pass
+
+
 class PhotoCreationError(AppException):
     pass
 
