@@ -47,3 +47,12 @@ class Photo(
         "SurveyDefect",
         back_populates="photos",
     )
+
+
+# TODO: Сделать ограничение на обязательное существование связи:
+# __table_args__ = (
+#         CheckConstraint(
+#             '(defect_type_id IS NOT NULL) OR (survey_id IS NOT NULL) OR (survey_defect_id IS NOT NULL)',
+#             name='ck_photo_at_least_one_link'
+#         ),
+#     )
