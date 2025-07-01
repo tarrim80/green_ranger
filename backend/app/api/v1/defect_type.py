@@ -1,9 +1,11 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.routing import APIRouter
 
 from app.core.constants import ExceptionDetails
+from app.core.exceptions import DefectTypeCreationError
 from app.repositories import DefectTypeRepository
-from app.schemas import DefectTypeCreate, DefectTypeRead, DefectTypeUpdate
+from app.schemas import DefectTypeRead, DefectTypeUpdate
+from app.services.defect_type_service import DefectTypeService
 
 router = APIRouter()
 
@@ -52,10 +54,21 @@ async def get_defect_type(
     description="Создает новый вид дефекта в справочнике.",
 )
 async def create_defect_type(
-    defect_type_in: DefectTypeCreate, repo: DefectTypeRepository = Depends()
+    name: str = Form(default=...),
+    description: str | None = Form(default=None),
+    files: list[UploadFile] = File(default=...),
+    service: DefectTypeService = Depends(),
 ) -> DefectTypeRead:
-    defect_type_db = await repo.create(obj_in=defect_type_in)
-    return DefectTypeRead.model_validate(obj=defect_type_db)
+    try:
+        defect_type_db = await service.create_with_photos(
+            name=name, description=description, files=files
+        )
+        return DefectTypeRead.model_validate(obj=defect_type_db)
+    except DefectTypeCreationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 
 @router.patch(
@@ -90,9 +103,9 @@ async def defect_type_update(
     description="Удаляет вид дефекта по идентификатору (id).",
 )
 async def defect_type_delete(
-    defect_type_id: int, repo: DefectTypeRepository = Depends()
+    defect_type_id: int, service: DefectTypeService = Depends()
 ) -> None:
-    if not await repo.remove(id=defect_type_id):
+    if not await service.delete_with_photos(defect_type_id=defect_type_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ExceptionDetails.get_not_found_detail(
