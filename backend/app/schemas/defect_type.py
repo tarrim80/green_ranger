@@ -20,7 +20,7 @@ DEFECT_TYPE_FIELDS_CONFIG = {
     "image_ids": Field(
         default_factory=list,
         description="Список идентификаторов изображений видов дефектов",
-        examples=[1, 2],
+        examples=[[1, 2]],
     ),
     "images": Field(description="Список изображений вида дефекта"),
 }
@@ -34,7 +34,7 @@ class DefectTypeBase(BaseModel):
 
 
 class DefectTypeCreate(DefectTypeBase):
-    image_ids: Annotated[list[int], DEFECT_TYPE_FIELDS_CONFIG["image_ids"]]
+    pass
 
 
 class DefectTypeUpdate(BaseModel):
