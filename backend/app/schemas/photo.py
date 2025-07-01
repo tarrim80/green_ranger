@@ -1,18 +1,68 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.api.validators import validate_photo_links
+
+PHOTO_FIELDS_CONFIG = {
+    "id": [Field(description="Уникальный идентификатор", examples=[1, 2, 3])],
+    "file_path": [
+        Field(
+            description="Путь хранения фото",
+            examples=["media/photo/file_name.jpg"],
+        )
+    ],
+    "uploaded_at": [
+        Field(
+            description="Дата и время загрузки фото",
+        )
+    ],
+    "defect_type_id": [
+        Field(
+            description="ID связанного вида дефекта",
+            examples=[1],
+        )
+    ],
+    "survey_id": [
+        Field(
+            description="ID связанного обследования",
+            examples=[1],
+        )
+    ],
+    "survey_defect_id": [
+        Field(
+            description="ID связанного конкретного дефекта",
+            examples=[1],
+        )
+    ],
+}
 
 
 class PhotoBase(BaseModel):
-    file_path: str
+    file_path: Annotated[str, *PHOTO_FIELDS_CONFIG["file_path"]]
+    defect_type_id: Annotated[
+        int | None, *PHOTO_FIELDS_CONFIG["defect_type_id"]
+    ] = None
+    survey_id: Annotated[int | None, *PHOTO_FIELDS_CONFIG["survey_id"]] = None
+    survey_defect_id: Annotated[
+        int | None, *PHOTO_FIELDS_CONFIG["survey_defect_id"]
+    ] = None
 
 
 class PhotoCreate(PhotoBase):
-    pass
+    @model_validator(mode="after")
+    def check_links(self) -> "PhotoCreate":
+        validate_photo_links(self.__dict__)
+        return self
+
+
+class PhotoUpdate(PhotoBase):
+    file_path: Annotated[str, *PHOTO_FIELDS_CONFIG["file_path"]] | None = None  # type: ignore
 
 
 class PhotoRead(PhotoBase):
-    id: int
-    uploaded_at: datetime
+    id: Annotated[int, *PHOTO_FIELDS_CONFIG["id"]]
+    uploaded_at: Annotated[datetime, *PHOTO_FIELDS_CONFIG["uploaded_at"]]
 
     model_config = ConfigDict(from_attributes=True)

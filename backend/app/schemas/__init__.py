@@ -9,7 +9,7 @@ from app.schemas.enums import (
     SurveyStatusEnum,
     TreeConditionEnum,
 )
-from app.schemas.photo import PhotoCreate, PhotoRead
+from app.schemas.photo import PhotoCreate, PhotoRead, PhotoUpdate
 from app.schemas.role import RoleCreate, RoleRead, RoleUpdate
 from app.schemas.sector import (
     SectorCreate,
