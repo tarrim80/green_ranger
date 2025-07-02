@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     postgres_port: int
     secret: str = "SECRET"
     development_status: str = "PRODUCTION"
+    timezone: str = "UTC"
 
     DEBUG: bool = development_status != "PRODUCTION"
 

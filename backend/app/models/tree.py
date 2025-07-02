@@ -60,11 +60,15 @@ class Tree(
         "User",
         back_populates="registered_trees",
     )
+    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # для корректной работы с часовыми поясами.
     created_at: Mapped[DateTime] = mapped_column(
         DateTime,
         server_default=func.now(),
         comment="Дата и время создания записи",
     )
+    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # для корректной работы с часовыми поясами.
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime,
         server_default=func.now(),

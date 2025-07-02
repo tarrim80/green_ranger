@@ -56,11 +56,15 @@ class Survey(
         "User",
         back_populates="created_surveys",
     )
+    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # для корректной работы с часовыми поясами.
     created_at: Mapped[DateTime] = mapped_column(
         DateTime,
         server_default=func.now(),
         comment="Дата и время проведения обследования",
     )
+    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # для корректной работы с часовыми поясами.
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime,
         server_default=func.now(),

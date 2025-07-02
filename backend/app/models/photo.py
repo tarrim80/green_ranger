@@ -20,6 +20,8 @@ class Photo(
         String(255),
         comment="Путь к файлу изображения на сервере",
     )
+    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # для корректной работы с часовыми поясами.
     uploaded_at: Mapped[DateTime] = mapped_column(
         DateTime,
         server_default=func.now(),

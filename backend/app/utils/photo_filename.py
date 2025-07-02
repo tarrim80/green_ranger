@@ -1,6 +1,9 @@
 import datetime
 import uuid
+import zoneinfo
 from pathlib import Path
+
+from app.core.config import settings
 
 FORMAT = "%Y%m%d"
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -11,7 +14,9 @@ PHOTO_EXT = ".jpg"
 
 def generate_unique_filename() -> str:
     """Генерирует уникальное имя файла, сохраняя расширение."""
-    date_part = datetime.date.today().strftime(format=FORMAT)
+    local_tz = zoneinfo.ZoneInfo(settings.timezone)
+    local_now = datetime.datetime.now(tz=local_tz)
+    date_part = local_now.strftime(format=FORMAT)
     uuid_part = uuid.uuid4().hex
     ext_part = PHOTO_EXT
     return f"{date_part}_{uuid_part}{ext_part}"
