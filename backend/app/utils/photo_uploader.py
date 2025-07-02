@@ -5,11 +5,8 @@ from fastapi import UploadFile
 
 from app.core.constants import ExceptionDetails
 from app.core.exceptions import FileProcessingError
-from app.services.image_processor import process_image
-from app.services.photo_filename import (
-    generate_unique_filename,
-    get_photo_path,
-)
+from app.utils.image_processor import process_image
+from app.utils.photo_filename import generate_unique_filename, get_photo_path
 
 
 async def save_uploaded_images(

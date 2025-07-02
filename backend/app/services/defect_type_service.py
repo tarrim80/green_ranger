@@ -8,7 +8,7 @@ from app.core.exceptions import DefectTypeCreationError
 from app.models import DefectType, Photo
 from app.repositories.defect_type import DefectTypeRepository
 from app.services.photo_service import PhotoService
-from app.services.photo_uploader import save_uploaded_images
+from app.utils.photo_uploader import save_uploaded_images
 
 
 class DefectTypeService:

@@ -7,7 +7,7 @@ from app.core.exceptions import SurveyDefectCreationError
 from app.models import Photo, SurveyDefect
 from app.repositories.survey_defect import SurveyDefectRepository
 from app.services.photo_service import PhotoService
-from app.services.photo_uploader import save_uploaded_images
+from app.utils.photo_uploader import save_uploaded_images
 
 
 class SurveyDefectService:

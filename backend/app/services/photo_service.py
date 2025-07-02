@@ -11,8 +11,8 @@ from app.core.exceptions import (
 from app.models import Photo
 from app.repositories.photo import PhotoRepository
 from app.schemas import PhotoCreate
-from app.services.photo_filename import MEDIA_ROOT
-from app.services.photo_uploader import save_uploaded_images
+from app.utils.photo_filename import MEDIA_ROOT
+from app.utils.photo_uploader import save_uploaded_images
 
 
 class PhotoService:
