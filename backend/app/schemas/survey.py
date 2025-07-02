@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -7,43 +8,111 @@ from app.schemas.photo import PhotoRead
 from app.schemas.survey_defect import SurveyDefectCreate, SurveyDefectRead
 from app.schemas.user import UserShortRead
 
+SURVEY_FIELDS_CONFIG = {
+    "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
+    "age": Field(
+        description="Возраст растения",
+        examples=[24, 5],
+    ),
+    "height": Field(
+        description="Высота дерева в метрах",
+        examples=[5.3],
+    ),
+    "diameter": Field(
+        description="Диаметр ствола, в см (на высоте 1,3 м, примерно \
+            на высоте плеча)",
+        examples=[36],
+    ),
+    "trunk_count": Field(
+        description="Количество стволов",
+        examples=[1],
+    ),
+    "condition": Field(
+        description="КСО - Коэффициент состояния объекта (поле выбора)",
+        examples=["Угнетенное"],
+    ),
+    "is_emergency_report": Field(
+        description="Потенциально опасное",
+        examples=[False, True],
+    ),
+    "note": Field(
+        description="Общее примечание к обследованию",
+        examples=["Повторное обследование для фиксации динамики"],
+    ),
+    "tree_id": Field(
+        description="Идентификатор (ID) растения",
+        examples=[8],
+    ),
+    "survey_status": Field(
+        description="Статус обследования (поле выбора)",
+        examples=["Одобрено"],
+    ),
+    "author_id": Field(
+        description="ID пользователя выполняющего обследование",
+        examples=[9],
+    ),
+    "author": Field(
+        description="Волонтер выполняющий обследование",
+        examples=["Иван Петров"],
+    ),
+    "survey_defects": Field(
+        description="Список зафиксированных дефектов",
+    ),
+    "tree_photos": Field(description="Список фотографий общего вида растения"),
+}
+
 
 class SurveyBase(BaseModel):
-    age: int | None
-    height: float | None
-    diameter: float | None
-    trunk_count: int
-    condition: TreeConditionEnum
-    is_emergency_report: bool
-    note: str | None
+    age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]]
+    height: Annotated[float | None, SURVEY_FIELDS_CONFIG["height"]]
+    diameter: Annotated[float | None, SURVEY_FIELDS_CONFIG["diameter"]]
+    trunk_count: Annotated[int, SURVEY_FIELDS_CONFIG["trunk_count"]]
+    condition: Annotated[TreeConditionEnum, SURVEY_FIELDS_CONFIG["condition"]]
+    is_emergency_report: Annotated[
+        bool, SURVEY_FIELDS_CONFIG["is_emergency_report"]
+    ]
+    note: Annotated[str | None, SURVEY_FIELDS_CONFIG["note"]]
 
 
 class SurveyCreate(SurveyBase):
-    tree_id: int
-    tree_photo_ids: list[int] = Field(default_factory=list)
-    survey_defects: list[SurveyDefectCreate] = Field(default_factory=list)
+    tree_id: Annotated[int, SURVEY_FIELDS_CONFIG["tree_id"]]
+    author_id: Annotated[int, SURVEY_FIELDS_CONFIG["author_id"]]
 
 
 class SurveyUpdate(BaseModel):
-    tree_id: int | None = None
-    age: int | None = None
-    height: float | None = None
-    diameter: float | None = None
-    trunk_count: int | None = None
-    condition: TreeConditionEnum | None = None
-    is_emergency_report: bool | None = None
-    note: str | None = None
-    survey_status: SurveyStatusEnum | None = None
+    tree_id: Annotated[int | None, SURVEY_FIELDS_CONFIG["tree_id"]] = None
+    age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]] = None
+    height: Annotated[float | None, SURVEY_FIELDS_CONFIG["height"]] = None
+    diameter: Annotated[float | None, SURVEY_FIELDS_CONFIG["diameter"]] = None
+    trunk_count: Annotated[int | None, SURVEY_FIELDS_CONFIG["trunk_count"]] = (
+        None
+    )
+    condition: Annotated[
+        TreeConditionEnum | None, SURVEY_FIELDS_CONFIG["condition"]
+    ] = None
+    is_emergency_report: Annotated[
+        bool | None, SURVEY_FIELDS_CONFIG["is_emergency_report"]
+    ] = None
+    note: Annotated[str | None, SURVEY_FIELDS_CONFIG["note"]] = None
+    survey_status: Annotated[
+        SurveyStatusEnum | None, SURVEY_FIELDS_CONFIG["survey_status"]
+    ] = None
 
 
 class SurveyRead(SurveyBase):
-    id: int
-    tree_id: int
-    survey_status: SurveyStatusEnum
-    created_at: datetime
-    updated_at: datetime
-    author: UserShortRead
-    tree_photos: list[PhotoRead]
-    survey_defects: list[SurveyDefectRead]
+    id: Annotated[int, SURVEY_FIELDS_CONFIG["id"]]
+    tree_id: Annotated[int, SURVEY_FIELDS_CONFIG["tree_id"]]
+    survey_status: Annotated[
+        SurveyStatusEnum, SURVEY_FIELDS_CONFIG["survey_status"]
+    ]
+    created_at: Annotated[datetime, SURVEY_FIELDS_CONFIG["created_at"]]
+    updated_at: Annotated[datetime, SURVEY_FIELDS_CONFIG["updated_at"]]
+    author: Annotated[UserShortRead, SURVEY_FIELDS_CONFIG["author"]]
+    tree_photos: Annotated[
+        list[PhotoRead], SURVEY_FIELDS_CONFIG["tree_photos"]
+    ]
+    survey_defects: Annotated[
+        list[SurveyDefectRead], SURVEY_FIELDS_CONFIG["survey_defects"]
+    ]
 
     model_config = ConfigDict(from_attributes=True)
