@@ -6,8 +6,6 @@ from pathlib import Path
 from app.core.config import settings
 
 FORMAT = "%Y%m%d"
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-MEDIA_ROOT = BASE_DIR / "media"
 TARGET_DIR = "photo"
 PHOTO_EXT = ".jpg"
 
@@ -24,7 +22,7 @@ def generate_unique_filename() -> str:
 
 def get_photo_path(unique_filename: str) -> tuple[Path, str]:
     """Возвращает абсолютный путь для сохранения и относительный для БД."""
-    absolute_path = MEDIA_ROOT / TARGET_DIR
+    absolute_path = settings.media_root / TARGET_DIR
     absolute_path.mkdir(parents=True, exist_ok=True)
     relative_path = f"{TARGET_DIR}/{unique_filename}"
     return absolute_path / unique_filename, relative_path

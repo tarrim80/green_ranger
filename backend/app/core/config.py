@@ -1,5 +1,8 @@
+from pathlib import Path
 from pydantic import computed_field
 from pydantic_settings import BaseSettings
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -33,6 +36,11 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @computed_field
+    @property
+    def media_root(self) -> Path:
+        return BASE_DIR / "media"
 
 
 settings = Settings()  # type: ignore

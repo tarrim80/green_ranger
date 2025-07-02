@@ -2,6 +2,7 @@ import os
 
 from fastapi import Depends, UploadFile
 
+from app.core.config import settings
 from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     NotFoundError,
@@ -11,7 +12,6 @@ from app.core.exceptions import (
 from app.models import Photo
 from app.repositories.photo import PhotoRepository
 from app.schemas import PhotoCreate
-from app.utils.photo_filename import MEDIA_ROOT
 from app.utils.photo_uploader import save_uploaded_images
 
 
@@ -58,7 +58,7 @@ class PhotoService:
                 raise NotFoundError
             await self.repo.remove(id=photo_id)
 
-            file_to_delete = MEDIA_ROOT / photo_db.file_path
+            file_to_delete = settings.media_root / photo_db.file_path
             if os.path.exists(path=file_to_delete):
                 os.remove(path=file_to_delete)
         except Exception as e:
