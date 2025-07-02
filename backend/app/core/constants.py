@@ -1,6 +1,7 @@
 MAX_PHOTO_PX = (1920, 1080)
 FORMAT_PHOTO = "JPEG"
 PHOTO_QUALITY = 80
+DEFAULT_LIMIT = 100
 
 
 class ExceptionDetails:

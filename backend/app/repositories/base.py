@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import DEFAULT_LIMIT
+
 TModel = TypeVar("TModel")
 TCreate = TypeVar("TCreate", bound=BaseModel)
 TUpdate = TypeVar("TUpdate", bound=BaseModel)
@@ -22,7 +24,7 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         return result.scalar_one_or_none()
 
     async def get_multi(
-        self, skip: int = 0, limit: int = 100
+        self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[TModel]:
         result = await self.session.execute(
             statement=select(self.model).offset(offset=skip).limit(limit=limit)
