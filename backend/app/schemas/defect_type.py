@@ -17,11 +17,6 @@ DEFECT_TYPE_FIELDS_CONFIG = {
             "Глубокий раскол ствола",
         ],
     ),
-    "image_ids": Field(
-        default_factory=list,
-        description="Список идентификаторов изображений видов дефектов",
-        examples=[[1, 2]],
-    ),
     "images": Field(description="Список изображений вида дефекта"),
 }
 
@@ -41,9 +36,6 @@ class DefectTypeUpdate(BaseModel):
     name: Annotated[str | None, DEFECT_TYPE_FIELDS_CONFIG["name"]] = None
     description: Annotated[
         str | None, DEFECT_TYPE_FIELDS_CONFIG["description"]
-    ] = None
-    image_ids: Annotated[
-        list[int] | None, DEFECT_TYPE_FIELDS_CONFIG["image_ids"]
     ] = None
 
 
