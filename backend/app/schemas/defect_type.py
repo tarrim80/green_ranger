@@ -38,8 +38,10 @@ class DefectTypeCreate(DefectTypeBase):
 
 
 class DefectTypeUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
+    name: Annotated[str | None, DEFECT_TYPE_FIELDS_CONFIG["name"]] = None
+    description: Annotated[
+        str | None, DEFECT_TYPE_FIELDS_CONFIG["description"]
+    ] = None
     image_ids: Annotated[
         list[int] | None, DEFECT_TYPE_FIELDS_CONFIG["image_ids"]
     ] = None
