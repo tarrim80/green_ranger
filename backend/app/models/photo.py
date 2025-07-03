@@ -27,6 +27,7 @@ class Photo(
         server_default=func.now(),
         comment="Дата и время загрузки фото",
     )
+    # TODO: Добавить в индексы (index=True)
     defect_type_id: Mapped[int | None] = mapped_column(
         ForeignKey("defect_type.id"),
         comment="ID вида дефекта",
@@ -34,6 +35,7 @@ class Photo(
     defect_type_image: Mapped["DefectType"] = relationship(
         "DefectType", back_populates="images"
     )
+    # TODO: Добавить в индексы (index=True)
     survey_id: Mapped[int | None] = mapped_column(
         ForeignKey("survey.id"),
         comment="ID обследования",
@@ -41,6 +43,7 @@ class Photo(
     tree_photo: Mapped["Survey"] = relationship(
         "Survey", back_populates="tree_photos"
     )
+    # TODO: Добавить в индексы (index=True)
     survey_defect_id: Mapped[int | None] = mapped_column(
         ForeignKey("survey_defect.id"),
         comment="ID конкретного дефекта",
