@@ -3,9 +3,10 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.constants import SurveyDefaults
 from app.schemas.enums import SurveyStatusEnum, TreeConditionEnum
 from app.schemas.photo import PhotoRead
-from app.schemas.survey_defect import SurveyDefectCreate, SurveyDefectRead
+from app.schemas.survey_defect import SurveyDefectRead
 from app.schemas.user import UserShortRead
 
 SURVEY_FIELDS_CONFIG = {
@@ -63,20 +64,27 @@ SURVEY_FIELDS_CONFIG = {
 
 
 class SurveyBase(BaseModel):
-    age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]]
-    height: Annotated[float | None, SURVEY_FIELDS_CONFIG["height"]]
-    diameter: Annotated[float | None, SURVEY_FIELDS_CONFIG["diameter"]]
-    trunk_count: Annotated[int, SURVEY_FIELDS_CONFIG["trunk_count"]]
-    condition: Annotated[TreeConditionEnum, SURVEY_FIELDS_CONFIG["condition"]]
+    age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]] = None
+    height: Annotated[float | None, SURVEY_FIELDS_CONFIG["height"]] = None
+    diameter: Annotated[float | None, SURVEY_FIELDS_CONFIG["diameter"]] = None
+    trunk_count: Annotated[int, SURVEY_FIELDS_CONFIG["trunk_count"]] = (
+        SurveyDefaults.TRUNK_COUNT
+    )
+    condition: Annotated[
+        TreeConditionEnum, SURVEY_FIELDS_CONFIG["condition"]
+    ] = SurveyDefaults.CONDITION
     is_emergency_report: Annotated[
         bool, SURVEY_FIELDS_CONFIG["is_emergency_report"]
-    ]
-    note: Annotated[str | None, SURVEY_FIELDS_CONFIG["note"]]
+    ] = SurveyDefaults.IS_EMERGENCY_REPORT
+    note: Annotated[str | None, SURVEY_FIELDS_CONFIG["note"]] = None
 
 
 class SurveyCreate(SurveyBase):
     tree_id: Annotated[int, SURVEY_FIELDS_CONFIG["tree_id"]]
     author_id: Annotated[int, SURVEY_FIELDS_CONFIG["author_id"]]
+    survey_status: Annotated[
+        SurveyStatusEnum | None, SURVEY_FIELDS_CONFIG["survey_status"]
+    ] = SurveyDefaults.SURVEY_STATUS
 
 
 class SurveyUpdate(BaseModel):

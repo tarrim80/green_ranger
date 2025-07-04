@@ -2,6 +2,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.constants import SurveyDefectDefaults
 from app.schemas import DefectStatusEnum, DefectTypeShortRead, PhotoRead
 
 SURVEY_DEFECT_FIELDS_CONFIG = {
@@ -39,6 +40,9 @@ class SurveyDefectBase(BaseModel):
     description: Annotated[
         str | None, SURVEY_DEFECT_FIELDS_CONFIG["description"]
     ] = None
+    defect_status: Annotated[
+        DefectStatusEnum | None, SURVEY_DEFECT_FIELDS_CONFIG["defect_status"]
+    ] = SurveyDefectDefaults.DEFECT_STATUS
 
 
 class SurveyDefectCreate(SurveyDefectBase):
