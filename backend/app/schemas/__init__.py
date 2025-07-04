@@ -17,7 +17,12 @@ from app.schemas.sector import (
     SectorShortRead,
     SectorUpdate,
 )
-from app.schemas.survey import SurveyCreate, SurveyRead, SurveyUpdate
+from app.schemas.survey import (
+    SurveyCreate,
+    SurveyRead,
+    SurveyShortRead,
+    SurveyUpdate,
+)
 from app.schemas.survey_defect import (
     SurveyDefectCreate,
     SurveyDefectRead,

@@ -14,6 +14,7 @@ from app.repositories.survey_defect import SurveyDefectRepository
 from app.schemas import (
     DefectStatusEnum,
     PhotoRead,
+    SurveyDefectCreate,
     SurveyDefectRead,
     SurveyDefectUpdate,
 )
@@ -75,12 +76,15 @@ async def create_defect(
     files: list[UploadFile] = File(default=...),
     service: SurveyDefectService = Depends(),
 ) -> SurveyDefectRead:
+    survey_defect_in = SurveyDefectCreate(
+        survey_id=survey_id,
+        defect_type_id=defect_type_id,
+        description=description,
+        defect_status=defect_status,
+    )
     try:
-        survey_defect_db = await service.create_defect_with_photos(
-            survey_id=survey_id,
-            defect_type_id=defect_type_id,
-            description=description,
-            defect_status=defect_status,
+        survey_defect_db = await service.create_with_photos(
+            survey_defect_in=survey_defect_in,
             files=files,
         )
         return SurveyDefectRead.model_validate(obj=survey_defect_db)

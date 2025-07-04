@@ -107,20 +107,23 @@ class SurveyUpdate(BaseModel):
     ] = None
 
 
-class SurveyRead(SurveyBase):
+class SurveyShortRead(SurveyBase):
     id: Annotated[int, SURVEY_FIELDS_CONFIG["id"]]
     tree_id: Annotated[int, SURVEY_FIELDS_CONFIG["tree_id"]]
     survey_status: Annotated[
         SurveyStatusEnum, SURVEY_FIELDS_CONFIG["survey_status"]
     ]
+    author: Annotated[UserShortRead, SURVEY_FIELDS_CONFIG["author"]]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SurveyRead(SurveyShortRead):
     created_at: Annotated[datetime, SURVEY_FIELDS_CONFIG["created_at"]]
     updated_at: Annotated[datetime, SURVEY_FIELDS_CONFIG["updated_at"]]
-    author: Annotated[UserShortRead, SURVEY_FIELDS_CONFIG["author"]]
     tree_photos: Annotated[
         list[PhotoRead], SURVEY_FIELDS_CONFIG["tree_photos"]
     ]
     survey_defects: Annotated[
         list[SurveyDefectRead], SURVEY_FIELDS_CONFIG["survey_defects"]
     ]
-
-    model_config = ConfigDict(from_attributes=True)

@@ -3,10 +3,25 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constants import SurveyDefectDefaults
-from app.schemas import DefectStatusEnum, DefectTypeShortRead, PhotoRead
+from app.schemas import (
+    DefectStatusEnum,
+    DefectTypeShortRead,
+    PhotoRead,
+    SurveyShortRead,
+)
 
 SURVEY_DEFECT_FIELDS_CONFIG = {
     "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
+    "survey_id": Field(
+        description="Идентификатор (ID) обследования, в ходе которого \
+            обнаружен данный дефект",
+        examples=[1, 2, 3],
+    ),
+    "survey": Field(
+        description="Обследование, в ходе которого \
+            обнаружен данный дефект",
+        examples=[SurveyShortRead],
+    ),
     "defect_type_id": Field(
         description="Идентификатор (ID) вида дефекта",
         examples=[1, 2, 3],
@@ -34,6 +49,7 @@ SURVEY_DEFECT_FIELDS_CONFIG = {
 
 
 class SurveyDefectBase(BaseModel):
+    survey_id: Annotated[int, SURVEY_DEFECT_FIELDS_CONFIG["survey_id"]]
     defect_type_id: Annotated[
         int, SURVEY_DEFECT_FIELDS_CONFIG["defect_type_id"]
     ]
@@ -60,6 +76,7 @@ class SurveyDefectUpdate(BaseModel):
 
 class SurveyDefectRead(BaseModel):
     id: Annotated[int, SURVEY_DEFECT_FIELDS_CONFIG["id"]]
+    survey: Annotated[SurveyShortRead, SURVEY_DEFECT_FIELDS_CONFIG["survey"]]
     description: Annotated[
         str | None, SURVEY_DEFECT_FIELDS_CONFIG["description"]
     ]

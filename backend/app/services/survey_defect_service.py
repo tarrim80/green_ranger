@@ -6,7 +6,7 @@ from app.core.constants import ExceptionDetails
 from app.core.exceptions import SurveyDefectCreationError
 from app.models import Photo, SurveyDefect
 from app.repositories.survey_defect import SurveyDefectRepository
-from app.schemas import DefectStatusEnum
+from app.schemas import SurveyDefectCreate
 from app.services.photo_service import PhotoService
 from app.utils.photo_uploader import save_uploaded_images
 
@@ -20,12 +20,9 @@ class SurveyDefectService:
         self.repo = repo
         self.photo_service = photo_service
 
-    async def create_defect_with_photos(
+    async def create_with_photos(
         self,
-        survey_id: int,
-        defect_type_id: int,
-        description: str | None,
-        defect_status: DefectStatusEnum,
+        survey_defect_in: SurveyDefectCreate,
         files: list[UploadFile],
     ) -> SurveyDefect:
         saved_file_paths = []
@@ -33,12 +30,7 @@ class SurveyDefectService:
             photos_data, saved_file_paths = await save_uploaded_images(
                 files=files
             )
-            new_data = {
-                "survey_id": survey_id,
-                "defect_type_id": defect_type_id,
-                "description": description,
-                "defect_status": defect_status,
-            }
+            new_data = survey_defect_in.model_dump()
             new_survey_defect = SurveyDefect(**new_data)
             self.repo.session.add(instance=new_survey_defect)
             await self.repo.session.flush()
