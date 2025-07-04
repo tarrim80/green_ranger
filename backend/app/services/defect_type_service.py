@@ -7,6 +7,7 @@ from app.core.constants import ExceptionDetails
 from app.core.exceptions import DefectTypeCreationError
 from app.models import DefectType, Photo
 from app.repositories.defect_type import DefectTypeRepository
+from app.schemas import DefectTypeCreate
 from app.services.photo_service import PhotoService
 from app.utils.photo_uploader import save_uploaded_images
 
@@ -21,14 +22,14 @@ class DefectTypeService:
         self.photo_service = photo_service
 
     async def create_with_photos(
-        self, name: str, description: str | None, files: list[UploadFile]
+        self, defect_type_in: DefectTypeCreate, files: list[UploadFile]
     ) -> DefectType:
         saved_file_paths = []
         try:
             photos_data, saved_file_paths = await save_uploaded_images(
                 files=files
             )
-            new_data = {"name": name, "description": description}
+            new_data = defect_type_in.model_dump()
             new_defect_type = DefectType(**new_data)
             self.repo.session.add(instance=new_defect_type)
             await self.repo.session.flush()

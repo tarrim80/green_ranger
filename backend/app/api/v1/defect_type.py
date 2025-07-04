@@ -4,7 +4,12 @@ from fastapi.routing import APIRouter
 from app.core.constants import ExceptionDetails
 from app.core.exceptions import DefectTypeCreationError, PhotoCreationError
 from app.repositories import DefectTypeRepository
-from app.schemas import DefectTypeRead, DefectTypeUpdate, PhotoRead
+from app.schemas import (
+    DefectTypeCreate,
+    DefectTypeRead,
+    DefectTypeUpdate,
+    PhotoRead,
+)
 from app.services.defect_type_service import DefectTypeService
 from app.services.photo_service import PhotoService
 
@@ -60,9 +65,13 @@ async def create_defect_type(
     files: list[UploadFile] = File(default=...),
     service: DefectTypeService = Depends(),
 ) -> DefectTypeRead:
+    defect_type_in = DefectTypeCreate(
+        name=name,
+        description=description,
+    )
     try:
         defect_type_db = await service.create_with_photos(
-            name=name, description=description, files=files
+            defect_type_in=defect_type_in, files=files
         )
         return DefectTypeRead.model_validate(obj=defect_type_db)
     except DefectTypeCreationError as e:
