@@ -26,7 +26,7 @@ main_router.include_router(
     tags=["Обнаруженные дефекты"],
 )
 main_router.include_router(
-    router=survey_router, prefix="/surveys", tags=["Обследования (Осмотры)"]
+    router=survey_router, tags=["Обследования (Осмотры)"]
 )
 # main_router.include_router(router=team_router, prefix="/teams", tags=["Команды"])
 # main_router.include_router(router=ticket_router, prefix="/tickets", tags=["Заявки"])

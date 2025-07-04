@@ -12,15 +12,76 @@ from app.core.constants import ExceptionDetails, SurveyDefaults
 from app.core.exceptions import PhotoCreationError, SurveyCreationError
 from app.core.user import current_user
 from app.models import User
-from app.schemas import PhotoRead, SurveyCreate, SurveyRead, TreeConditionEnum
+from app.repositories.survey import SurveyRepository
+from app.schemas import (
+    PhotoRead,
+    SurveyCreate,
+    SurveyRead,
+    SurveyUpdate,
+    TreeConditionEnum,
+)
 from app.services.photo_service import PhotoService
 from app.services.survey_service import SurveyService
 
 router = APIRouter()
 
 
+@router.get(
+    path="/surveys",
+    response_model=list[SurveyRead],
+    summary="Получение списка обследований",
+    description="Показывает список всех обследований зарегистрированных \
+        в приложении.",
+)
+async def get_all_surveys(
+    repo: SurveyRepository = Depends(),
+) -> list[SurveyRead]:
+    surveys_db = await repo.get_multi()
+    return [
+        SurveyRead.model_validate(obj=survey_db) for survey_db in surveys_db
+    ]
+
+
+@router.get(
+    path="/surveys/{survey_id}",
+    response_model=SurveyRead,
+    status_code=status.HTTP_200_OK,
+    summary="Получение обследования",
+    description="Показывает обследование по идентификатору (id).",
+)
+async def get_survey(
+    survey_id: int, repo: SurveyRepository = Depends()
+) -> SurveyRead:
+    survey_db = await repo.get(id=survey_id)
+    if not survey_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name="Обследование"
+            ),
+        )
+    return SurveyRead.model_validate(obj=survey_db)
+
+
+@router.get(
+    path="/trees/{tree_id}/surveys",
+    response_model=list[SurveyRead],
+    status_code=status.HTTP_200_OK,
+    summary="Получение всех обследований растения",
+    description="Показывает список всех обследований растения \
+        с определенным идентификатором (id).",
+)
+async def get_surveys_by_tree_id(
+    tree_id: int, repo: SurveyRepository = Depends()
+) -> list[SurveyRead]:
+    surveys_db = await repo.get_all_by_tree_id(tree_id=tree_id)
+    return [
+        SurveyRead.model_validate(obj=survey_db) for survey_db in surveys_db
+    ]
+
+
 @router.post(
-    path="/",
+    path="/surveys",
     response_model=SurveyRead,
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового обследования",
@@ -65,7 +126,7 @@ async def create_survey(
 
 
 @router.post(
-    path="/{survey_id}/tree_photos",
+    path="/surveys/{survey_id}/tree_photos",
     response_model=list[PhotoRead],
     status_code=status.HTTP_201_CREATED,
     summary="Добавление фотографий растения",
@@ -87,4 +148,45 @@ async def add_tree_photos_to_survey(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"{ExceptionDetails.FAILED_CREATE_PHOTO} {e}",
+        )
+
+
+@router.patch(
+    path="/surveys/{survey_id}",
+    response_model=SurveyRead,
+    summary="Изменение обследования",
+    description="Изменяет поля записи обследования по идентификатору (id).",
+)
+async def update_survey(
+    survey_id: int,
+    survey_in: SurveyUpdate,
+    repo: SurveyRepository = Depends(),
+) -> SurveyRead:
+    survey_db = await repo.get(id=survey_id)
+    if not survey_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name="Обследование"
+            ),
+        )
+    survey_update_db = await repo.update(db_obj=survey_db, obj_in=survey_in)
+    return SurveyRead.model_validate(obj=survey_update_db)
+
+
+@router.delete(
+    path="/surveys/{survey_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удаление конкретного обследования",
+    description="Удаляет обследование по идентификатору (id).",
+)
+async def delete_survey(
+    survey_id: int, service: SurveyService = Depends()
+) -> None:
+    if not await service.delete_with_photos(survey_id=survey_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name="Обследование"
+            ),
         )

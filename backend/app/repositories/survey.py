@@ -45,3 +45,13 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
         )
         result = await self.session.execute(statement=statement)
         return result.scalars().all()
+
+    async def get_all_by_tree_id(self, tree_id: int) -> Sequence[Survey]:
+        statement = (
+            select(self.model)
+            .options(selectinload(self.model.tree_photos))
+            .options(selectinload(self.model.survey_defects))
+            .where(self.model.tree_id == tree_id)
+        )
+        surveys_db = await self.session.execute(statement=statement)
+        return surveys_db.scalars().all()
