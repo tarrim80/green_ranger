@@ -1,3 +1,5 @@
+from app.schemas import DefectStatusEnum, SurveyStatusEnum, TreeConditionEnum
+
 MAX_PHOTO_PX = (1920, 1080)
 FORMAT_PHOTO = "JPEG"
 PHOTO_QUALITY = 80
@@ -27,3 +29,23 @@ class ValidationMessages:
         "Фотография должна быть связана хотя бы с одним объектом "
         "(тип дефекта, обследование или дефект обследования)."
     )
+
+
+class SurveyDefaults:
+    TRUNK_COUNT = 1
+    CONDITION = TreeConditionEnum.HEALTHY
+    IS_EMERGENCY_REPORT = False
+    SURVEY_STATUS = SurveyStatusEnum.ON_REVIEW
+
+
+class SurveyDefectDefaults:
+    DEFECT_STATUS = DefectStatusEnum.ACTIVE
+
+
+class SectorDefaults:
+    COLOR = "#000000"
+
+
+class TreeDefaults:
+    CONDITION = TreeConditionEnum.HEALTHY
+    IS_EMERGENCY = False
