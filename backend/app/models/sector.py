@@ -4,6 +4,7 @@ from geoalchemy2 import Geometry
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.constants import SectorDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
 
@@ -36,8 +37,8 @@ class Sector(
     team: Mapped["Team"] = relationship("Team", back_populates="sectors")
     color: Mapped[str] = mapped_column(
         String(7),
-        default="#000000",
-        server_default="#000000",
+        default=SectorDefaults.COLOR,
+        server_default=str(SectorDefaults.COLOR),
         comment="Цвет для отображения участка на карте (HEX)",
     )
     geometry: Mapped[Geometry] = mapped_column(

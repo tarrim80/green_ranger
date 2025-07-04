@@ -4,6 +4,7 @@ from sqlalchemy import ForeignKey, Text
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.constants import SurveyDefectDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
 from app.schemas.enums import DefectStatusEnum
@@ -40,8 +41,8 @@ class SurveyDefect(
             DefectStatusEnum,
             name="defect_status_enum",
         ),
-        default=DefectStatusEnum.ACTIVE,
-        server_default=DefectStatusEnum.ACTIVE.name,
+        default=SurveyDefectDefaults.DEFECT_STATUS,
+        server_default=SurveyDefectDefaults.DEFECT_STATUS.name,
         comment="Код статуса обработки этого дефекта",
     )
     description: Mapped[str | None] = mapped_column(

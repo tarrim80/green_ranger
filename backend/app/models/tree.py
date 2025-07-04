@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.constants import TreeDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
 from app.schemas.enums import TreeConditionEnum
@@ -43,13 +44,13 @@ class Tree(
     sector: Mapped["Sector"] = relationship("Sector", back_populates="trees")
     condition: Mapped[TreeConditionEnum] = mapped_column(
         ENUM(TreeConditionEnum, name="tree_condition_enum"),
-        default=TreeConditionEnum.HEALTHY,
-        server_default=TreeConditionEnum.HEALTHY.name,
+        default=TreeDefaults.CONDITION,
+        server_default=TreeDefaults.CONDITION.name,
         comment="КСО",
     )
     is_emergency: Mapped[bool] = mapped_column(
-        default=False,
-        server_default="False",
+        default=TreeDefaults.IS_EMERGENCY,
+        server_default=str(TreeDefaults.IS_EMERGENCY),
         comment="Признак аварийности/срочности",
     )
     author_id: Mapped[int] = mapped_column(
