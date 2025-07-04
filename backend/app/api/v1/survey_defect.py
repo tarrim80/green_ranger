@@ -8,10 +8,15 @@ from fastapi import (
     status,
 )
 
-from app.core.constants import ExceptionDetails
+from app.core.constants import ExceptionDetails, SurveyDefectDefaults
 from app.core.exceptions import PhotoCreationError, SurveyDefectCreationError
 from app.repositories.survey_defect import SurveyDefectRepository
-from app.schemas import PhotoRead, SurveyDefectRead, SurveyDefectUpdate
+from app.schemas import (
+    DefectStatusEnum,
+    PhotoRead,
+    SurveyDefectRead,
+    SurveyDefectUpdate,
+)
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
 
@@ -66,6 +71,7 @@ async def create_defect(
     survey_id: int,
     defect_type_id: int = Form(default=...),
     description: str | None = Form(default=None),
+    defect_status: DefectStatusEnum = SurveyDefectDefaults.DEFECT_STATUS,
     files: list[UploadFile] = File(default=...),
     service: SurveyDefectService = Depends(),
 ) -> SurveyDefectRead:
@@ -74,6 +80,7 @@ async def create_defect(
             survey_id=survey_id,
             defect_type_id=defect_type_id,
             description=description,
+            defect_status=defect_status,
             files=files,
         )
         return SurveyDefectRead.model_validate(obj=survey_defect_db)
