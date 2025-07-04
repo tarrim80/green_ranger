@@ -14,6 +14,10 @@ class SurveyDefectCreationError(AppException):
     pass
 
 
+class SurveyCreationError(AppException):
+    pass
+
+
 class PhotoCreationError(AppException):
     pass
 
