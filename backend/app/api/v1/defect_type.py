@@ -25,10 +25,10 @@ router = APIRouter()
 async def get_all_defect_types(
     repo: DefectTypeRepository = Depends(),
 ) -> list[DefectTypeRead]:
-    db_defect_types = await repo.get_multi()
+    defect_types_db = await repo.get_multi()
     return [
-        DefectTypeRead.model_validate(obj=defect_type)
-        for defect_type in db_defect_types
+        DefectTypeRead.model_validate(obj=defect_type_db)
+        for defect_type_db in defect_types_db
     ]
 
 
