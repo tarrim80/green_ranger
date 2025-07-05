@@ -1,9 +1,15 @@
 import os
+from pathlib import Path
 
 from fastapi import Depends, UploadFile
 
 from app.core.constants import ExceptionDetails
-from app.core.exceptions import SurveyDefectCreationError
+from app.core.exceptions import (
+    NotFoundError,
+    SurveyDefectCreationError,
+    SurveyDefectRemovingError,
+)
+from app.core.transaction_manager import atomic_transaction
 from app.models import Photo, SurveyDefect
 from app.repositories.survey_defect import SurveyDefectRepository
 from app.schemas import SurveyDefectCreate
@@ -54,10 +60,36 @@ class SurveyDefectService:
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY_DEFECT}: {e}"
             )
 
-    async def delete_with_photos(self, defect_id: int) -> None | SurveyDefect:
+    async def _stage_deletion(self, defect_id: int) -> list[Path]:
         defect_db = await self.repo.get(id=defect_id)
         if not defect_db:
-            return None
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name="Дефект", id=defect_id
+                )
+            )
+        photos_to_delete: list[Path] = []
         for photo in defect_db.photos:
-            await self.photo_service.delete_photo_file(photo_id=photo.id)
-        return await self.repo.remove(id=defect_id)
+            photo_path = await self.photo_service._stage_deletion(
+                photo_id=photo.id
+            )
+            photos_to_delete.append(photo_path)
+        await self.repo.remove(id=defect_id)
+        return photos_to_delete
+
+    async def delete_with_photos(self, defect_id: int) -> None:
+        try:
+            async with atomic_transaction(session=self.repo.session):
+                photos_to_delete = await self._stage_deletion(
+                    defect_id=defect_id
+                )
+            if photos_to_delete:
+                for path in photos_to_delete:
+                    if os.path.exists(path=path):
+                        os.remove(path=path)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise SurveyDefectRemovingError(
+                f"{ExceptionDetails.FAILED_ROMOVE_SURVEY_DEFECT}: {e}"
+            ) from e

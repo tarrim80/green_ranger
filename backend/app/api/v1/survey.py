@@ -9,7 +9,12 @@ from fastapi import (
 )
 
 from app.core.constants import ExceptionDetails, SurveyDefaults
-from app.core.exceptions import PhotoCreationError, SurveyCreationError
+from app.core.exceptions import (
+    NotFoundError,
+    PhotoCreationError,
+    SurveyCreationError,
+    SurveyRemovingError,
+)
 from app.core.user import current_user
 from app.models import User
 from app.repositories.survey import SurveyRepository
@@ -57,7 +62,7 @@ async def get_survey(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ExceptionDetails.get_not_found_detail(
-                model_name="Обследование"
+                model_name="Обследование", id=survey_id
             ),
         )
     return SurveyRead.model_validate(obj=survey_db)
@@ -167,7 +172,7 @@ async def update_survey(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ExceptionDetails.get_not_found_detail(
-                model_name="Обследование"
+                model_name="Обследование", id=survey_id
             ),
         )
     survey_update_db = await repo.update(db_obj=survey_db, obj_in=survey_in)
@@ -183,10 +188,14 @@ async def update_survey(
 async def delete_survey(
     survey_id: int, service: SurveyService = Depends()
 ) -> None:
-    if not await service.delete_with_photos(survey_id=survey_id):
+    try:
+        await service.delete_with_photos(survey_id=survey_id)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Обследование"
-            ),
-        )
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except SurveyRemovingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from e

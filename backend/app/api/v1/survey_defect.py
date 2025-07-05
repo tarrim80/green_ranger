@@ -9,7 +9,12 @@ from fastapi import (
 )
 
 from app.core.constants import ExceptionDetails, SurveyDefectDefaults
-from app.core.exceptions import PhotoCreationError, SurveyDefectCreationError
+from app.core.exceptions import (
+    NotFoundError,
+    PhotoCreationError,
+    SurveyDefectCreationError,
+    SurveyDefectRemovingError,
+)
 from app.repositories.survey_defect import SurveyDefectRepository
 from app.schemas import (
     DefectStatusEnum,
@@ -34,13 +39,15 @@ router = APIRouter()
 async def get_defect(
     defect_id: int, repo: SurveyDefectRepository = Depends()
 ) -> SurveyDefectRead:
-    survey_defect_db = await repo.get(id=defect_id)
-    if not survey_defect_db:
+    defect_db = await repo.get(id=defect_id)
+    if not defect_db:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(model_name="Дефект"),
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name="Дефект", id=defect_id
+            ),
         )
-    return SurveyDefectRead.model_validate(obj=survey_defect_db)
+    return SurveyDefectRead.model_validate(obj=defect_db)
 
 
 @router.get(
@@ -133,7 +140,9 @@ async def update_defect(
     if not defect_db:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(model_name="Дефект"),
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name="Дефект", id=defect_id
+            ),
         )
     defect_update_db = await repo.update(db_obj=defect_db, obj_in=defect_in)
     return SurveyDefectRead.model_validate(obj=defect_update_db)
@@ -148,8 +157,14 @@ async def update_defect(
 async def delete_defect(
     defect_id: int, service: SurveyDefectService = Depends()
 ) -> None:
-    if not await service.delete_with_photos(defect_id=defect_id):
+    try:
+        await service.delete_with_photos(defect_id=defect_id)
+    except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(model_name="Дефект"),
-        )
+            detail=str(e),
+        ) from e
+    except SurveyDefectRemovingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e

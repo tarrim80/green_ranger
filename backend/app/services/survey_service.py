@@ -1,9 +1,15 @@
 import os
+from pathlib import Path
 
 from fastapi import Depends, UploadFile
 
 from app.core.constants import ExceptionDetails
-from app.core.exceptions import SurveyCreationError
+from app.core.exceptions import (
+    NotFoundError,
+    SurveyCreationError,
+    SurveyRemovingError,
+)
+from app.core.transaction_manager import atomic_transaction
 from app.models import Photo, Survey
 from app.repositories.survey import SurveyRepository
 from app.schemas import SurveyCreate
@@ -55,14 +61,44 @@ class SurveyService:
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY}: {e}"
             )
 
-    async def delete_with_photos(self, survey_id: int) -> None | Survey:
+    async def _stage_deletion(self, survey_id: int) -> list[Path]:
         survey_db = await self.repo.get(id=survey_id)
         if not survey_db:
-            return None
-        for survey_defect in survey_db.survey_defects:
-            await self.defect_service.delete_with_photos(
-                defect_id=survey_defect.id
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name="Обследование", id=survey_id
+                )
             )
+        photos_to_delete = []
+        for survey_defect in survey_db.survey_defects:
+            defect_photos_to_delete = (
+                await self.defect_service._stage_deletion(
+                    defect_id=survey_defect.id
+                )
+            )
+            if defect_photos_to_delete:
+                photos_to_delete.extend(defect_photos_to_delete)
         for tree_photo in survey_db.tree_photos:
-            await self.photo_service.delete_photo_file(photo_id=tree_photo.id)
-        return await self.repo.remove(id=survey_id)
+            tree_photo_to_delete = await self.photo_service._stage_deletion(
+                photo_id=tree_photo.id
+            )
+            photos_to_delete.append(tree_photo_to_delete)
+        await self.repo.remove(id=survey_id)
+        return photos_to_delete
+
+    async def delete_with_photos(self, survey_id: int) -> None:
+        try:
+            async with atomic_transaction(session=self.repo.session):
+                photos_to_delete = await self._stage_deletion(
+                    survey_id=survey_id
+                )
+            if photos_to_delete:
+                for path in photos_to_delete:
+                    if os.path.exists(path=path):
+                        os.remove(path=path)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise SurveyRemovingError(
+                f"{ExceptionDetails.FAILED_REMOVE_SURVEY}: {e}"
+            ) from e

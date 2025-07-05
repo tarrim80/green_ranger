@@ -55,14 +55,16 @@ async def upload_photos(
     summary="Изменение фотографии",
     description="Изменяет связи фотографии.",
 )
-async def photo_update(
+async def update_photo(
     photo_id: int, photo_in: PhotoUpdate, repo: PhotoRepository = Depends()
 ) -> PhotoRead:
     photo_db = await repo.get(id=photo_id)
     if not photo_db:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(model_name="Фото"),
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name="Фото", id=photo_id
+            ),
         )
     try:
         updated_photo = await repo.update(db_obj=photo_db, obj_in=photo_in)
@@ -80,18 +82,18 @@ async def photo_update(
     summary="Удаление фото",
     description="Удаляет фото и запись в БД по его идентификатору (id).",
 )
-async def photo_delete(
+async def delete_photo(
     photo_id: int, service: PhotoService = Depends()
 ) -> None:
     try:
-        await service.delete_photo_file(photo_id=photo_id)
+        await service.delete_photo(photo_id=photo_id)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(model_name="Фото"),
-        )
+            detail=str(e),
+        ) from e
     except PhotoRemovingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"{ExceptionDetails.FAILED_REMOVE_RECORD}: {e}",
-        )
+            detail=str(e),
+        ) from e

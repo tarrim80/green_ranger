@@ -2,7 +2,12 @@ from fastapi import Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.routing import APIRouter
 
 from app.core.constants import ExceptionDetails
-from app.core.exceptions import DefectTypeCreationError, PhotoCreationError
+from app.core.exceptions import (
+    DefectTypeCreationError,
+    DefectTypeRemovingError,
+    NotFoundError,
+    PhotoCreationError,
+)
 from app.repositories import DefectTypeRepository
 from app.schemas import (
     DefectTypeCreate,
@@ -46,7 +51,7 @@ async def get_defect_type(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ExceptionDetails.get_not_found_detail(
-                model_name="Вид дефекта"
+                model_name="Вид дефекта", id=defect_type_id
             ),
         )
     return DefectTypeRead.model_validate(obj=defect_type_db)
@@ -123,7 +128,7 @@ async def update_defect_type(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=ExceptionDetails.get_not_found_detail(
-                model_name="Вид дефекта"
+                model_name="Вид дефекта", id=defect_type_id
             ),
         )
     defect_type_update_db = await repo.update(
@@ -141,10 +146,13 @@ async def update_defect_type(
 async def delete_defect_type(
     defect_type_id: int, service: DefectTypeService = Depends()
 ) -> None:
-    if not await service.delete_with_photos(defect_type_id=defect_type_id):
+    try:
+        await service.delete_with_images(defect_type_id=defect_type_id)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Вид дефекта"
-            ),
-        )
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except DefectTypeRemovingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e

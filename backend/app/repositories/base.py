@@ -68,5 +68,4 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         if not obj:
             return None
         await self.session.delete(instance=obj)
-        await self.session.commit()
         return obj

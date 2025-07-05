@@ -1,10 +1,16 @@
 import os
+from pathlib import Path
 
 from fastapi import Depends, UploadFile
 from sqlalchemy.exc import IntegrityError
 
 from app.core.constants import ExceptionDetails
-from app.core.exceptions import DefectTypeCreationError
+from app.core.exceptions import (
+    DefectTypeCreationError,
+    DefectTypeRemovingError,
+    NotFoundError,
+)
+from app.core.transaction_manager import atomic_transaction
 from app.models import DefectType, Photo
 from app.repositories.defect_type import DefectTypeRepository
 from app.schemas import DefectTypeCreate
@@ -58,12 +64,36 @@ class DefectTypeService:
                 f"{ExceptionDetails.FAILED_CREATE_DEFECT_TYPE}: {e}"
             )
 
-    async def delete_with_photos(
-        self, defect_type_id: int
-    ) -> None | DefectType:
+    async def _stage_deletion(self, defect_type_id: int) -> list[Path]:
         defect_type_db = await self.repo.get(id=defect_type_id)
         if not defect_type_db:
-            return None
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name="Вид дефекта", id=defect_type_id
+                )
+            )
+        images_to_delete: list[Path] = []
         for image in defect_type_db.images:
-            await self.photo_service.delete_photo_file(photo_id=image.id)
-        return await self.repo.remove(id=defect_type_id)
+            image_path = await self.photo_service._stage_deletion(
+                photo_id=image.id
+            )
+            images_to_delete.append(image_path)
+        await self.repo.remove(id=defect_type_id)
+        return images_to_delete
+
+    async def delete_with_images(self, defect_type_id: int) -> None:
+        try:
+            async with atomic_transaction(session=self.repo.session):
+                images_to_delete = await self._stage_deletion(
+                    defect_type_id=defect_type_id
+                )
+            if images_to_delete:
+                for path in images_to_delete:
+                    if os.path.exists(path=path):
+                        os.remove(path=path)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise DefectTypeRemovingError(
+                f"{ExceptionDetails.FAILED_REMOVE_DEFECT_TYPE}: {e}"
+            ) from e

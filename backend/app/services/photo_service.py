@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from fastapi import Depends, UploadFile
 
@@ -9,6 +10,7 @@ from app.core.exceptions import (
     PhotoCreationError,
     PhotoRemovingError,
 )
+from app.core.transaction_manager import atomic_transaction
 from app.models import Photo
 from app.repositories.photo import PhotoRepository
 from app.schemas import PhotoCreate
@@ -51,15 +53,27 @@ class PhotoService:
                 f"{ExceptionDetails.FAILED_CREATE_PHOTO}: {e}"
             )
 
-    async def delete_photo_file(self, photo_id: int) -> None:
-        try:
-            photo_db = await self.repo.get(id=photo_id)
-            if not photo_db:
-                raise NotFoundError
-            await self.repo.remove(id=photo_id)
+    async def _stage_deletion(self, photo_id: int) -> Path:
+        photo_db = await self.repo.get(id=photo_id)
+        if not photo_db:
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name="Фото", id=photo_id
+                )
+            )
+        await self.repo.remove(id=photo_id)
+        file_to_delete = settings.media_root / photo_db.file_path
+        return file_to_delete
 
-            file_to_delete = settings.media_root / photo_db.file_path
-            if os.path.exists(path=file_to_delete):
-                os.remove(path=file_to_delete)
+    async def delete_photo(self, photo_id: int) -> None:
+        try:
+            async with atomic_transaction(session=self.repo.session):
+                path_to_delete = await self._stage_deletion(photo_id=photo_id)
+            if os.path.exists(path=path_to_delete):
+                os.remove(path=path_to_delete)
+        except NotFoundError:
+            raise
         except Exception as e:
-            raise PhotoRemovingError(e)
+            raise PhotoRemovingError(
+                f"{ExceptionDetails.FAILED_REMOVE_PHOTO}: {e}"
+            ) from e
