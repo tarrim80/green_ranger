@@ -30,6 +30,30 @@ class SurveyRemovingError(AppException):
     pass
 
 
+class SectorCreationError(AppException):
+    pass
+
+
+class SectorRemovingError(AppException):
+    pass
+
+
+class TeamCreationError(AppException):
+    pass
+
+
+class TeamRemovingError(AppException):
+    pass
+
+
+class TreeCreationError(AppException):
+    pass
+
+
+class TreeRemovingError(AppException):
+    pass
+
+
 class PhotoCreationError(AppException):
     pass
 
@@ -47,4 +71,8 @@ class RoleRemovingError(AppException):
 
 
 class NotFoundError(AppException):
+    pass
+
+
+class NotAllowedError(AppException):
     pass
