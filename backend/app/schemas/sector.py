@@ -1,42 +1,79 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from geojson_pydantic import Polygon
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from app.schemas import TeamShortRead, UserShortRead
 
 
+SECTOR_FIELDS_CONFIG = {
+    "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
+    "name": Field(
+        description="Название (номер) учетного участка",
+        examples=["Участок 1", "Участок степных растений"],
+    ),
+    "color": Field(
+        description="Цвет границы участка на карте в hex формате",
+        examples=["#0F3BEB", "#FF2503"],
+    ),
+    "geometry": Field(
+        description="Полигон - границы участка",
+    ),
+    "curator_id": Field(
+        description="Идентификатор ID куратора учетного участка",
+        examples=[1, 2, 3],
+    ),
+    "curator": Field(
+        description="Имя куратора учетного участка",
+        examples=["Владимир Эпиктетов"],
+    ),
+    "team_id": Field(
+        description="Идентификатор ID команды волонтеров, \
+            назначенной на участок",
+        examples=[1, 2, 3],
+    ),
+    "team": Field(
+        description="Список волонтеров команды, назначенной на участок",
+        examples=[["Иван Петров", "Данияр Ермеков", "Улжан Ахметова"]],
+    ),
+}
+
+
 class SectorBase(BaseModel):
-    name: str
-    color: str
-    geometry: Polygon
+    name: Annotated[str, SECTOR_FIELDS_CONFIG["name"]]
+    color: Annotated[str, SECTOR_FIELDS_CONFIG["color"]]
+    geometry: Annotated[Polygon, SECTOR_FIELDS_CONFIG["geometry"]]
 
 
 class SectorCreate(SectorBase):
-    curator_id: int
-    team_id: int | None
+    curator_id: Annotated[int, SECTOR_FIELDS_CONFIG["curator_id"]]
+    team_id: Annotated[int | None, SECTOR_FIELDS_CONFIG["team_id"]]
 
 
 class SectorUpdate(BaseModel):
-    name: str | None = None
-    color: str | None = None
-    geometry: Polygon | None = None
-    curator_id: int | None = None
-    team_id: int | None = None
+    name: Annotated[str | None, SECTOR_FIELDS_CONFIG["name"]] = None
+    color: Annotated[str | None, SECTOR_FIELDS_CONFIG["color"]] = None
+    geometry: Annotated[Polygon | None, SECTOR_FIELDS_CONFIG["geometry"]] = (
+        None
+    )
+    curator_id: Annotated[int | None, SECTOR_FIELDS_CONFIG["curator_id"]] = (
+        None
+    )
+    team_id: Annotated[int | None, SECTOR_FIELDS_CONFIG["team_id"]] = None
 
 
 class SectorRead(SectorBase):
-    id: int
-    curator: "UserShortRead"
-    team: "TeamShortRead"
+    id: Annotated[int, SECTOR_FIELDS_CONFIG["id"]]
+    curator: Annotated["UserShortRead", SECTOR_FIELDS_CONFIG["curator"]]
+    team: Annotated["TeamShortRead", SECTOR_FIELDS_CONFIG["team"]]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class SectorShortRead(BaseModel):
-    id: int
-    name: str
-    color: str
+    id: Annotated[int, SECTOR_FIELDS_CONFIG["id"]]
+    name: Annotated[str, SECTOR_FIELDS_CONFIG["name"]]
+    color: Annotated[str, SECTOR_FIELDS_CONFIG["color"]]
 
     model_config = ConfigDict(from_attributes=True)
