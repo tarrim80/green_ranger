@@ -18,6 +18,9 @@ class Sector(
 ):
     """Модель учетного участка."""
 
+    __verbose_name__ = "Учетный участок"
+    __verbose_name_plural__ = "Учетные участки"
+
     name: Mapped[str] = mapped_column(
         String(50),
         unique=True,

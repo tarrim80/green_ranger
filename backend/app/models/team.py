@@ -16,6 +16,9 @@ class Team(
 ):
     """Модель команды волонтеров."""
 
+    __verbose_name__ = "Команда волонтеров"
+    __verbose_name_plural__ = "Команды волонтеров"
+
     name: Mapped[str] = mapped_column(
         String(50), unique=True, comment="Название команды"
     )

@@ -19,6 +19,9 @@ class SurveyDefect(
 ):
     """Модель конкретного дефекта, обнаруженного при обследовании."""
 
+    __verbose_name__ = "Дефект"
+    __verbose_name_plural__ = "Дефекты"
+
     # TODO: Добавить в индексы (index=True)
     survey_id: Mapped[int] = mapped_column(
         ForeignKey("survey.id"), comment="ID обследования"

@@ -16,6 +16,9 @@ class Photo(
 ):
     """Модель фотографий"""
 
+    __verbose_name__ = "Фото"
+    __verbose_name_plural__ = "Фото"
+
     file_path: Mapped[str] = mapped_column(
         String(255),
         comment="Путь к файлу изображения на сервере",

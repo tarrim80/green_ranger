@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 class Survey(IntIdPkMixin, Base):
     """Модель обследования (осмотра) растения."""
 
+    __verbose_name__ = "Обследование"
+    __verbose_name_plural__ = "Обследования"
+
     tree_id: Mapped[int] = mapped_column(
         ForeignKey("tree.id"),
         comment="ID растения",

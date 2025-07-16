@@ -16,6 +16,9 @@ class Role(
 ):
     """Роли пользователей."""
 
+    __verbose_name__ = "Роль"
+    __verbose_name_plural__ = "Роли"
+
     name: Mapped[str] = mapped_column(String(50), unique=True)
     description: Mapped[str | None] = mapped_column(Text)
     users: Mapped[list["User"]] = relationship(

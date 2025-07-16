@@ -20,6 +20,9 @@ class Tree(
 ):
     """Модель описывающая растение (дерево)."""
 
+    __verbose_name__ = "Растение"
+    __verbose_name_plural__ = "Растения"
+
     planting: Mapped[str] = mapped_column(
         String(length=50), comment="Вид насаждений"
     )

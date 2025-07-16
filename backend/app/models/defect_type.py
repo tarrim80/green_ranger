@@ -16,6 +16,9 @@ class DefectType(
 ):
     """Модель видов дефектов (справочная)."""
 
+    __verbose_name__ = "Вид дефекта"
+    __verbose_name_plural__ = "Виды дефектов"
+
     name: Mapped[str] = mapped_column(
         String(100),
         unique=True,
