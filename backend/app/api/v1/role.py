@@ -1,9 +1,11 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
-from app.core.constants import ExceptionDetails
-from app.core.exceptions import NotFoundError, RoleRemovingError
-from app.repositories import RoleRepository
+from app.core.exceptions import (
+    NotFoundError,
+    RoleRemovingError,
+    RoleUpdatingError,
+)
 from app.schemas import RoleCreate, RoleRead, RoleUpdate
 from app.services.role_service import RoleService
 
@@ -17,9 +19,9 @@ router = APIRouter()
     description="Показывает список всех возможных ролей пользователя.",
 )
 async def get_all_roles(
-    repo: RoleRepository = Depends(),
+    service: RoleService = Depends(),
 ) -> list[RoleRead]:
-    roles_db = await repo.get_multi()
+    roles_db = await service.get_all_roles()
     return [RoleRead.model_validate(obj=role_db) for role_db in roles_db]
 
 
@@ -29,16 +31,14 @@ async def get_all_roles(
     summary="Получение роли",
     description="Показывает роль по ее идентификатору (id).",
 )
-async def get_role(role_id: int, repo: RoleRepository = Depends()) -> RoleRead:
-    role_db = await repo.get(id=role_id)
-    if not role_db:
+async def get_role(role_id: int, service: RoleService = Depends()) -> RoleRead:
+    try:
+        role_db = await service.get_role(obj_id=role_id)
+        return RoleRead.model_validate(obj=role_db)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Роль", id=role_id
-            ),
-        )
-    return RoleRead.model_validate(obj=role_db)
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -50,9 +50,10 @@ async def get_role(role_id: int, repo: RoleRepository = Depends()) -> RoleRead:
         Используется для разграничения прав доступа пользователей.",
 )
 async def create_role(
-    role_in: RoleCreate, repo: RoleRepository = Depends()
+    role_in: RoleCreate,
+    service: RoleService = Depends(),
 ) -> RoleRead:
-    role_db = await repo.create(obj_in=role_in)
+    role_db = await service.create_role(obj_in=role_in)
     return RoleRead.model_validate(obj=role_db)
 
 
@@ -64,18 +65,23 @@ async def create_role(
         по ее идентификатору (id).",
 )
 async def update_role(
-    role_id: int, role_in: RoleUpdate, repo: RoleRepository = Depends()
+    role_id: int,
+    role_in: RoleUpdate,
+    service: RoleService = Depends(),
 ) -> RoleRead:
-    role_db = await repo.get(id=role_id)
-    if not role_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Роль", id=role_id
-            ),
+    try:
+        role_update_db = await service.update_role(
+            obj_id=role_id, obj_in=role_in
         )
-    role_update_db = await repo.update(db_obj=role_db, obj_in=role_in)
-    return RoleRead.model_validate(obj=role_update_db)
+        return RoleRead.model_validate(obj=role_update_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except RoleUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.delete(
