@@ -9,15 +9,19 @@ from app.core.exceptions import (
     NotFoundError,
     PhotoCreationError,
     PhotoRemovingError,
+    PhotoUpdatingError,
 )
 from app.core.transaction_manager import atomic_transaction
 from app.models import Photo
 from app.repositories.photo import PhotoRepository
 from app.schemas import PhotoCreate
+from app.services.mixins import UpdateObjMixin
 from app.utils.photo_uploader import save_uploaded_images
 
+from ..schemas.photo import PhotoUpdate
 
-class PhotoService:
+
+class PhotoService(UpdateObjMixin):
     def __init__(self, repo: PhotoRepository = Depends()) -> None:
         self.repo = repo
 
@@ -43,22 +47,43 @@ class PhotoService:
                     survey_defect_id=survey_defect_id,
                 )
                 photos_to_create.append(photo_in)
-            photos_db = await self.repo.create_many(objs_in=photos_to_create)
+            async with atomic_transaction(session=self.repo.session):
+                photos_db = await self.repo.create_many(
+                    objs_in=photos_to_create
+                )
             return photos_db
         except Exception as e:
-            await self.repo.session.rollback()
             for filename in saved_file_paths:
                 os.remove(path=filename)
             raise PhotoCreationError(
                 f"{ExceptionDetails.FAILED_CREATE_PHOTO}: {e}"
             )
 
+    async def update_photo(self, obj_id: int, obj_in: PhotoUpdate) -> Photo:
+        try:
+            photo_db = await self.repo.get(id=obj_id)
+            if not photo_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(),
+                        id=obj_id,
+                    )
+                )
+            photo = await self.update_obj(db_obj=photo_db, obj_in=obj_in)
+            return photo
+        except (ValueError, NotFoundError):
+            raise
+        except Exception as e:
+            raise PhotoUpdatingError(
+                f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
+            ) from e
+
     async def _stage_deletion(self, photo_id: int) -> Path:
         photo_db = await self.repo.get(id=photo_id)
         if not photo_db:
             raise NotFoundError(
                 ExceptionDetails.get_not_found_detail(
-                    model_name="Фото", id=photo_id
+                    model_name=self.repo.model.verbose_name(), id=photo_id
                 )
             )
         await self.repo.remove(id=photo_id)

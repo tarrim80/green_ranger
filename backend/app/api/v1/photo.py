@@ -6,6 +6,7 @@ from app.core.exceptions import (
     NotFoundError,
     PhotoCreationError,
     PhotoRemovingError,
+    PhotoUpdatingError,
 )
 from app.repositories import PhotoRepository
 from app.schemas import PhotoRead, PhotoUpdate
@@ -56,24 +57,26 @@ async def upload_photos(
     description="Изменяет связи фотографии.",
 )
 async def update_photo(
-    photo_id: int, photo_in: PhotoUpdate, repo: PhotoRepository = Depends()
+    photo_id: int, photo_in: PhotoUpdate, service: PhotoService = Depends()
 ) -> PhotoRead:
-    photo_db = await repo.get(id=photo_id)
-    if not photo_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Фото", id=photo_id
-            ),
-        )
     try:
-        updated_photo = await repo.update(db_obj=photo_db, obj_in=photo_in)
+        updated_photo = await service.update_photo(
+            obj_id=photo_id, obj_in=photo_in
+        )
         return PhotoRead.model_validate(obj=updated_photo)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PhotoUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.delete(
