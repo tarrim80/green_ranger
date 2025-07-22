@@ -8,17 +8,19 @@ from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     DefectTypeCreationError,
     DefectTypeRemovingError,
+    DefectTypeUpdatingError,
     NotFoundError,
 )
 from app.core.transaction_manager import atomic_transaction
 from app.models import DefectType, Photo
 from app.repositories.defect_type import DefectTypeRepository
-from app.schemas import DefectTypeCreate
+from app.schemas import DefectTypeCreate, DefectTypeUpdate
+from app.services.mixins import UpdateObjMixin
 from app.services.photo_service import PhotoService
 from app.utils.photo_uploader import save_uploaded_images
 
 
-class DefectTypeService:
+class DefectTypeService(UpdateObjMixin):
     def __init__(
         self,
         repo: DefectTypeRepository = Depends(),
@@ -26,6 +28,21 @@ class DefectTypeService:
     ) -> None:
         self.repo = repo
         self.photo_service = photo_service
+
+    async def get_all_defect_types(self) -> list[DefectType]:
+        defect_types_db = await self.repo.get_multi()
+        return defect_types_db
+
+    async def get_defect_type(self, obj_id: int) -> DefectType:
+        defect_type_db = await self.repo.get(id=obj_id)
+        if not defect_type_db:
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name=self.repo.model.verbose_name(),
+                    id=obj_id,
+                )
+            )
+        return defect_type_db
 
     async def create_with_photos(
         self, defect_type_in: DefectTypeCreate, files: list[UploadFile]
@@ -37,25 +54,23 @@ class DefectTypeService:
             )
             new_data = defect_type_in.model_dump()
             new_defect_type = DefectType(**new_data)
-            self.repo.session.add(instance=new_defect_type)
-            await self.repo.session.flush()
-            for photo_data in photos_data:
-                new_data = {
-                    "file_path": photo_data["file_path"],
-                    "defect_type_id": new_defect_type.id,
-                }
-                new_photo = Photo(**new_data)
-                self.repo.session.add(instance=new_photo)
-            await self.repo.session.commit()
-            await self.repo.session.refresh(
-                instance=new_defect_type, attribute_names=["images"]
-            )
+            async with atomic_transaction(session=self.repo.session):
+                self.repo.session.add(instance=new_defect_type)
+                await self.repo.session.flush()
+                for photo_data in photos_data:
+                    new_data = {
+                        "file_path": photo_data["file_path"],
+                        "defect_type_id": new_defect_type.id,
+                    }
+                    new_photo = Photo(**new_data)
+                    self.repo.session.add(instance=new_photo)
+                await self.repo.session.refresh(
+                    instance=new_defect_type, attribute_names=["images"]
+                )
             return new_defect_type
         except Exception as e:
-            await self.repo.session.rollback()
             for filename in saved_file_paths:
                 os.remove(filename)
-
             if isinstance(e, IntegrityError):
                 raise DefectTypeCreationError(
                     ExceptionDetails.ALREADY_EXIST_DEFECT_TYPE_NAME
@@ -64,12 +79,36 @@ class DefectTypeService:
                 f"{ExceptionDetails.FAILED_CREATE_DEFECT_TYPE}: {e}"
             )
 
+    async def update_defect_type(
+        self, obj_id: int, obj_in: DefectTypeUpdate
+    ) -> DefectType:
+        try:
+            defect_type_db = await self.repo.get(id=obj_id)
+            if not defect_type_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(),
+                        id=obj_id,
+                    )
+                )
+            defect_type = await self.update_obj(
+                db_obj=defect_type_db, obj_in=obj_in
+            )
+            return defect_type
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise DefectTypeUpdatingError(
+                f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
+            ) from e
+
     async def _stage_deletion(self, defect_type_id: int) -> list[Path]:
         defect_type_db = await self.repo.get(id=defect_type_id)
         if not defect_type_db:
             raise NotFoundError(
                 ExceptionDetails.get_not_found_detail(
-                    model_name="Вид дефекта", id=defect_type_id
+                    model_name=self.repo.model.verbose_name(),
+                    id=defect_type_id,
                 )
             )
         images_to_delete: list[Path] = []

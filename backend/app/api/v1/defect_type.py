@@ -5,10 +5,10 @@ from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     DefectTypeCreationError,
     DefectTypeRemovingError,
+    DefectTypeUpdatingError,
     NotFoundError,
     PhotoCreationError,
 )
-from app.repositories import DefectTypeRepository
 from app.schemas import (
     DefectTypeCreate,
     DefectTypeRead,
@@ -28,9 +28,9 @@ router = APIRouter()
     description="Показывает список всех возможных видов дефектов.",
 )
 async def get_all_defect_types(
-    repo: DefectTypeRepository = Depends(),
+    service: DefectTypeService = Depends(),
 ) -> list[DefectTypeRead]:
-    defect_types_db = await repo.get_multi()
+    defect_types_db = await service.get_all_defect_types()
     return [
         DefectTypeRead.model_validate(obj=defect_type_db)
         for defect_type_db in defect_types_db
@@ -44,17 +44,16 @@ async def get_all_defect_types(
     description="Показывает вид дефекта по идентификатору (id).",
 )
 async def get_defect_type(
-    defect_type_id: int, repo: DefectTypeRepository = Depends()
+    defect_type_id: int,
+    service: DefectTypeService = Depends(),
 ) -> DefectTypeRead:
-    defect_type_db = await repo.get(id=defect_type_id)
-    if not defect_type_db:
+    try:
+        defect_type_db = await service.get_defect_type(obj_id=defect_type_id)
+        return DefectTypeRead.model_validate(obj=defect_type_db)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Вид дефекта", id=defect_type_id
-            ),
-        )
-    return DefectTypeRead.model_validate(obj=defect_type_db)
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -121,20 +120,21 @@ async def add_images_to_defect_type(
 async def update_defect_type(
     defect_type_id: int,
     defect_type_in: DefectTypeUpdate,
-    repo: DefectTypeRepository = Depends(),
+    service: DefectTypeService = Depends(),
 ) -> DefectTypeRead:
-    defect_type_db = await repo.get(id=defect_type_id)
-    if not defect_type_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Вид дефекта", id=defect_type_id
-            ),
+    try:
+        defect_type_update_db = await service.update_defect_type(
+            obj_id=defect_type_id, obj_in=defect_type_in
         )
-    defect_type_update_db = await repo.update(
-        db_obj=defect_type_db, obj_in=defect_type_in
-    )
-    return DefectTypeRead.model_validate(obj=defect_type_update_db)
+        return DefectTypeRead.model_validate(obj=defect_type_update_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except DefectTypeUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.delete(
