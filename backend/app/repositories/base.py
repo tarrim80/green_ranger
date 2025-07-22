@@ -43,15 +43,12 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
     async def create(self, obj_in: TCreate) -> TModel:
         obj = self.model(**obj_in.model_dump())
         self.session.add(instance=obj)
-        await self.session.commit()
-        await self.session.refresh(instance=obj)
         return obj
 
     async def create_many(self, objs_in: list[TCreate]) -> list[TModel]:
         db_objs = [self.model(**obj_in.model_dump()) for obj_in in objs_in]
 
         self.session.add_all(instances=db_objs)
-        await self.session.commit()
         return db_objs
 
     async def update(self, db_obj: TModel, obj_in: TUpdate) -> TModel:
@@ -59,8 +56,6 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         for field, value in obj_data.items():
             setattr(db_obj, field, value)
         self.session.add(instance=db_obj)
-        await self.session.commit()
-        await self.session.refresh(instance=db_obj)
         return db_obj
 
     async def remove(self, id: int) -> TModel | None:
