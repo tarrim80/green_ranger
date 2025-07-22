@@ -1,14 +1,13 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     NotAllowedError,
     NotFoundError,
     SectorCreationError,
     SectorRemovingError,
+    SectorUpdatingError,
 )
-from app.repositories import SectorRepository
 from app.schemas import SectorCreate, SectorRead, SectorUpdate
 from app.services.sector_service import SectorService
 
@@ -22,9 +21,9 @@ router = APIRouter()
     description="Показывает список всех зарегистрированных участков.",
 )
 async def get_all_sectors(
-    repo: SectorRepository = Depends(),
+    service: SectorService = Depends(),
 ) -> list[SectorRead]:
-    sectors_db = await repo.get_multi()
+    sectors_db = await service.get_all_sectors()
     return [
         SectorRead.model_validate(obj=sector_db) for sector_db in sectors_db
     ]
@@ -37,17 +36,15 @@ async def get_all_sectors(
     description="Показывает участок по его идентификатору (id).",
 )
 async def get_sector(
-    sector_id: int, repo: SectorRepository = Depends()
+    sector_id: int, service: SectorService = Depends()
 ) -> SectorRead:
-    sector_db = await repo.get(id=sector_id)
-    if not sector_db:
+    try:
+        sector_db = await service.get_sector(obj_id=sector_id)
+        return SectorRead.model_validate(obj=sector_db)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Учетный участок", id=sector_id
-            ),
-        )
-    return SectorRead.model_validate(obj=sector_db)
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -78,18 +75,21 @@ async def create_sector(
         по его идентификатору (id).",
 )
 async def update_sector(
-    sector_id: int, sector_in: SectorUpdate, repo: SectorRepository = Depends()
+    sector_id: int, sector_in: SectorUpdate, service: SectorService = Depends()
 ) -> SectorRead:
-    sector_db = await repo.get(id=sector_id)
-    if not sector_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Учетный участок", id=sector_id
-            ),
+    try:
+        sector_update_db = await service.update_sector(
+            obj_id=sector_id, obj_in=sector_in
         )
-    sector_update_db = await repo.update(db_obj=sector_db, obj_in=sector_in)
-    return SectorRead.model_validate(obj=sector_update_db)
+        return SectorRead.model_validate(obj=sector_update_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except SectorUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.delete(
