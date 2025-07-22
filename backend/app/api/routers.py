@@ -8,6 +8,7 @@ from app.api.v1 import (
     survey_defect_router,
     survey_router,
     team_router,
+    tree_router,
     user_router,
 )
 
@@ -36,4 +37,4 @@ main_router.include_router(
 main_router.include_router(
     router=team_router, prefix="/teams", tags=["Команды"]
 )
-# main_router.include_router(router=tree_router, prefix="/trees", tags=["Растения"])
+main_router.include_router(router=tree_router, tags=["Растения (Деревья)"])

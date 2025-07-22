@@ -29,7 +29,13 @@ from app.schemas.survey_defect import (
     SurveyDefectUpdate,
 )
 from app.schemas.team import TeamCreate, TeamRead, TeamShortRead, TeamUpdate
-from app.schemas.tree import TreeCreate, TreeRead, TreeUpdate
+from app.schemas.tree import (
+    TreeCreate,
+    TreeCreateWithAuthor,
+    TreeRead,
+    TreeShortRead,
+    TreeUpdate,
+)
 from app.schemas.user import UserCreate, UserRead, UserShortRead, UserUpdate
 
 all_schemas = [
@@ -43,10 +49,16 @@ all_schemas = [
     SurveyDefectRead,
     TeamRead,
     TeamShortRead,
+    TreeRead,
+    TreeShortRead,
     UserRead,
     UserShortRead,
+    TreeCreate,
+    TreeCreateWithAuthor,
+    TreeUpdate,
 ]
 
 
 for schema in all_schemas:
-    schema.model_rebuild()
+    if hasattr(schema, "model_rebuild"):
+        schema.model_rebuild()
