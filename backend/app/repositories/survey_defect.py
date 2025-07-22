@@ -10,6 +10,8 @@ from app.models import SurveyDefect
 from app.repositories.base import BaseRepository
 from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
 
+from ..core.constants import DEFAULT_LIMIT
+
 
 class SurveyDefectRepository(
     BaseRepository[SurveyDefect, SurveyDefectCreate, SurveyDefectUpdate]
@@ -39,3 +41,15 @@ class SurveyDefectRepository(
         )
         result = await self.session.execute(statement=statement)
         return result.scalar_one_or_none()
+
+    async def get_multi(
+        self, skip: int = 0, limit: int = DEFAULT_LIMIT
+    ) -> Sequence[SurveyDefect]:
+        statement = (
+            select(self.model)
+            .options(selectinload(self.model.photos))
+            .offset(offset=skip)
+            .limit(limit=limit)
+        )
+        result = await self.session.execute(statement=statement)
+        return result.scalars().all()

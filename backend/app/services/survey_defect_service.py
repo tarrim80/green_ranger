@@ -8,16 +8,18 @@ from app.core.exceptions import (
     NotFoundError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,
+    SurveyDefectUpdatingError,
 )
 from app.core.transaction_manager import atomic_transaction
 from app.models import Photo, SurveyDefect
 from app.repositories.survey_defect import SurveyDefectRepository
-from app.schemas import SurveyDefectCreate
+from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
+from app.services.mixins.base_update import UpdateObjMixin
 from app.services.photo_service import PhotoService
 from app.utils.photo_uploader import save_uploaded_images
 
 
-class SurveyDefectService:
+class SurveyDefectService(UpdateObjMixin):
     def __init__(
         self,
         repo: SurveyDefectRepository = Depends(),
@@ -25,6 +27,27 @@ class SurveyDefectService:
     ) -> None:
         self.repo = repo
         self.photo_service = photo_service
+
+    async def get_all_defects(self) -> list[SurveyDefect]:
+        defects_db = await self.repo.get_multi()
+        return list(defects_db)
+
+    async def get_defect(self, obj_id: int) -> SurveyDefect:
+        defect_db = await self.repo.get(id=obj_id)
+        if not defect_db:
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name=self.repo.model.verbose_name(),
+                    id=obj_id,
+                )
+            )
+        return defect_db
+
+    async def get_defects_by_survey_id(
+        self, survey_id: int
+    ) -> list[SurveyDefect]:
+        defects_db = await self.repo.get_all_by_survey_id(survey_id=survey_id)
+        return list(defects_db)
 
     async def create_with_photos(
         self,
@@ -38,34 +61,54 @@ class SurveyDefectService:
             )
             new_data = survey_defect_in.model_dump()
             new_survey_defect = SurveyDefect(**new_data)
-            self.repo.session.add(instance=new_survey_defect)
-            await self.repo.session.flush()
-            for photo_data in photos_data:
-                new_data = {
-                    "file_path": photo_data["file_path"],
-                    "survey_defect_id": new_survey_defect.id,
-                }
-                new_photo = Photo(**new_data)
-                self.repo.session.add(instance=new_photo)
-            await self.repo.session.commit()
-            await self.repo.session.refresh(
-                instance=new_survey_defect, attribute_names=["photos"]
-            )
+            async with atomic_transaction(session=self.repo.session):
+                self.repo.session.add(instance=new_survey_defect)
+                await self.repo.session.flush()
+                for photo_data in photos_data:
+                    new_data = {
+                        "file_path": photo_data["file_path"],
+                        "survey_defect_id": new_survey_defect.id,
+                    }
+                    new_photo = Photo(**new_data)
+                    self.repo.session.add(instance=new_photo)
+                await self.repo.session.refresh(
+                    instance=new_survey_defect, attribute_names=["photos"]
+                )
             return new_survey_defect
         except Exception as e:
-            await self.repo.session.rollback()
             for filename in saved_file_paths:
                 os.remove(filename)
             raise SurveyDefectCreationError(
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY_DEFECT}: {e}"
             )
 
+    async def update_defect(
+        self, obj_id: int, obj_in: SurveyDefectUpdate
+    ) -> SurveyDefect:
+        try:
+            defect_db = await self.repo.get(id=obj_id)
+            if not defect_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(),
+                        id=obj_id,
+                    )
+                )
+            defect = await self.update_obj(db_obj=defect_db, obj_in=obj_in)
+            return defect
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise SurveyDefectUpdatingError(
+                f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
+            ) from e
+
     async def _stage_deletion(self, defect_id: int) -> list[Path]:
         defect_db = await self.repo.get(id=defect_id)
         if not defect_db:
             raise NotFoundError(
                 ExceptionDetails.get_not_found_detail(
-                    model_name="Дефект", id=defect_id
+                    model_name=self.repo.model.verbose_name(), id=defect_id
                 )
             )
         photos_to_delete: list[Path] = []

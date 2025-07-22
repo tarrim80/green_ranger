@@ -14,8 +14,8 @@ from app.core.exceptions import (
     PhotoCreationError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,
+    SurveyDefectUpdatingError,
 )
-from app.repositories.survey_defect import SurveyDefectRepository
 from app.schemas import (
     DefectStatusEnum,
     PhotoRead,
@@ -30,24 +30,38 @@ router = APIRouter()
 
 
 @router.get(
+    path="/defects/",
+    response_model=list[SurveyDefectRead],
+    summary="Получение списка всех дефектов",
+    description="Показывает список всех обнаруженных дефектов.",
+)
+async def get_all_survey_defects(
+    service: SurveyDefectService = Depends(),
+) -> list[SurveyDefectRead]:
+    defects_db = await service.get_all_defects()
+    return [
+        SurveyDefectRead.model_validate(obj=defect_db)
+        for defect_db in defects_db
+    ]
+
+
+@router.get(
     path="/defects/{defect_id}",
     response_model=SurveyDefectRead,
     status_code=status.HTTP_200_OK,
     summary="Получение конкретного дефекта",
     description="Показывает конкретный дефект по идентификатору (id).",
 )
-async def get_defect(
-    defect_id: int, repo: SurveyDefectRepository = Depends()
+async def get_survey_defect(
+    defect_id: int, service: SurveyDefectService = Depends()
 ) -> SurveyDefectRead:
-    defect_db = await repo.get(id=defect_id)
-    if not defect_db:
+    try:
+        defect_db = await service.get_defect(obj_id=defect_id)
+        return SurveyDefectRead.model_validate(obj=defect_db)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Дефект", id=defect_id
-            ),
-        )
-    return SurveyDefectRead.model_validate(obj=defect_db)
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
 
 
 @router.get(
@@ -58,10 +72,10 @@ async def get_defect(
     description="Показывает список всех дефектов обнаруженных и/или \
         отредактированных в обследовании с определенным идентификатором (id).",
 )
-async def get_defects_by_survey_id(
-    survey_id: int, repo: SurveyDefectRepository = Depends()
+async def get_survey_defects_by_survey_id(
+    survey_id: int, service: SurveyDefectService = Depends()
 ) -> list[SurveyDefectRead]:
-    defects_db = await repo.get_all_by_survey_id(survey_id=survey_id)
+    defects_db = await service.get_defects_by_survey_id(survey_id=survey_id)
     return [
         SurveyDefectRead.model_validate(obj=defect_db)
         for defect_db in defects_db
@@ -134,18 +148,21 @@ async def add_photos_to_defect(
 async def update_defect(
     defect_id: int,
     defect_in: SurveyDefectUpdate,
-    repo: SurveyDefectRepository = Depends(),
+    service: SurveyDefectService = Depends(),
 ) -> SurveyDefectRead:
-    defect_db = await repo.get(id=defect_id)
-    if not defect_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Дефект", id=defect_id
-            ),
+    try:
+        defect_update_db = await service.update_defect(
+            obj_id=defect_id, obj_in=defect_in
         )
-    defect_update_db = await repo.update(db_obj=defect_db, obj_in=defect_in)
-    return SurveyDefectRead.model_validate(obj=defect_update_db)
+        return SurveyDefectRead.model_validate(obj=defect_update_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except SurveyDefectUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.delete(
