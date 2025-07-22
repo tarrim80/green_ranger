@@ -1,4 +1,4 @@
-from app.core.constants import ValidationMessages
+from app.api.constants import ValidationMessages
 
 
 def validate_leader_is_member(leader_id: int, member_ids: list[int]) -> None:

@@ -8,8 +8,8 @@ from fastapi import (
     status,
 )
 
-from app.core.constants import ExceptionDetails, SurveyDefectDefaults
 from app.core.exceptions import (
+    ExceptionDetails,
     NotFoundError,
     PhotoCreationError,
     SurveyDefectCreationError,
@@ -23,6 +23,7 @@ from app.schemas import (
     SurveyDefectRead,
     SurveyDefectUpdate,
 )
+from app.schemas.defaults import SurveyDefectDefaults
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
 

@@ -4,11 +4,11 @@ from pathlib import Path
 from fastapi import Depends, UploadFile
 from sqlalchemy.exc import IntegrityError
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     DefectTypeCreationError,
     DefectTypeRemovingError,
     DefectTypeUpdatingError,
+    ExceptionDetails,
     NotFoundError,
 )
 from app.core.transaction_manager import atomic_transaction

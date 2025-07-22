@@ -3,8 +3,7 @@ import os
 import aiofiles
 from fastapi import UploadFile
 
-from app.core.constants import ExceptionDetails
-from app.core.exceptions import FileProcessingError
+from app.core.exceptions import ExceptionDetails, FileProcessingError
 from app.utils.image_processor import process_image
 from app.utils.photo_filename import generate_unique_filename, get_photo_path
 

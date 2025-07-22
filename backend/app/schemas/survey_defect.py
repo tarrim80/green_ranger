@@ -2,13 +2,13 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.constants import SurveyDefectDefaults
 from app.schemas import (
     DefectStatusEnum,
     DefectTypeShortRead,
     PhotoRead,
     SurveyShortRead,
 )
+from app.schemas.defaults import SurveyDefectDefaults
 
 SURVEY_DEFECT_FIELDS_CONFIG = {
     "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),

@@ -1,11 +1,11 @@
 from fastapi import Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.routing import APIRouter
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     DefectTypeCreationError,
     DefectTypeRemovingError,
     DefectTypeUpdatingError,
+    ExceptionDetails,
     NotFoundError,
     PhotoCreationError,
 )

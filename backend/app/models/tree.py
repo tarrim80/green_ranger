@@ -5,9 +5,9 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.constants import TreeDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
+from app.schemas.defaults import TreeDefaults
 from app.schemas.enums import TreeConditionEnum
 
 if TYPE_CHECKING:

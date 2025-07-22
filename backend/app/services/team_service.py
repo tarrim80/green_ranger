@@ -2,8 +2,8 @@ from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
 
 from app.api.validators import validate_leader_is_member
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
+    ExceptionDetails,
     NotAllowedError,
     NotFoundError,
     TeamCreationError,

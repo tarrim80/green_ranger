@@ -1,8 +1,8 @@
 from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
+    ExceptionDetails,
     NotAllowedError,
     NotFoundError,
     SectorCreationError,

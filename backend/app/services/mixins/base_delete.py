@@ -1,7 +1,6 @@
 from typing import Generic, TypeVar
 
-from app.core.constants import ExceptionDetails
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ExceptionDetails, NotFoundError
 from app.core.transaction_manager import atomic_transaction
 from app.repositories.base import BaseRepository
 

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.constants import SurveyDefaults
+from app.schemas.defaults import SurveyDefaults
 from app.schemas.enums import SurveyStatusEnum, TreeConditionEnum
 from app.schemas.photo import PhotoRead
 from app.schemas.survey_defect import SurveyDefectRead

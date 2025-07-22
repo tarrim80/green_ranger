@@ -4,7 +4,7 @@ from geoalchemy2 import Geometry
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.constants import SectorDefaults
+from app.schemas.defaults import SectorDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
 

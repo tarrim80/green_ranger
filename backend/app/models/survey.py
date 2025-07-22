@@ -4,9 +4,9 @@ from sqlalchemy import DateTime, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.constants import SurveyDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
+from app.schemas.defaults import SurveyDefaults
 from app.schemas.enums import SurveyStatusEnum, TreeConditionEnum
 
 if TYPE_CHECKING:

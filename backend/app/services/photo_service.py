@@ -4,8 +4,8 @@ from pathlib import Path
 from fastapi import Depends, UploadFile
 
 from app.core.config import settings
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
+    ExceptionDetails,
     NotFoundError,
     PhotoCreationError,
     PhotoRemovingError,

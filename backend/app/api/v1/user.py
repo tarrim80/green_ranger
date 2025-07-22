@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import ExceptionDetails
 from app.core.db import get_async_session
+from app.core.exceptions import ExceptionDetails
 from app.core.user import auth_backend, fastapi_users
 from app.models import User
 from app.schemas.user import UserCreate, UserRead, UserShortRead, UserUpdate

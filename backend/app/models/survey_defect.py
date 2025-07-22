@@ -4,9 +4,9 @@ from sqlalchemy import ForeignKey, Text
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.constants import SurveyDefectDefaults
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
+from app.schemas.defaults import SurveyDefectDefaults
 from app.schemas.enums import DefectStatusEnum
 
 if TYPE_CHECKING:

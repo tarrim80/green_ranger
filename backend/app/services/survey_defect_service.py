@@ -3,8 +3,8 @@ from pathlib import Path
 
 from fastapi import Depends, UploadFile
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
+    ExceptionDetails,
     NotFoundError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,

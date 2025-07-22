@@ -1,7 +1,7 @@
 from fastapi import Depends
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
+    ExceptionDetails,
     NotFoundError,
     RoleCreationError,
     RoleRemovingError,
