@@ -13,6 +13,7 @@ class ExceptionDetails:
 
     FAILED_TO_PROCESSING_FILE = "Ошибка при обработке файла"
     FAILED_CREATE_RECORD = "Ошибка при записи в базу данных"
+    FAILED_UPDATE_RECORD = "Ошибка при изменении записи в базе данных"
     FAILED_CREATE_DEFECT_TYPE = "Ошибка при создании вида дефекта"
     FAILED_REMOVE_DEFECT_TYPE = "Ошибка при удалении вида дефекта"
     FAILED_CREATE_SURVEY = "Ошибка при создании обследования"
