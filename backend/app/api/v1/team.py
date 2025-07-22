@@ -1,14 +1,13 @@
 from fastapi import Body, Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
-from app.core.constants import ExceptionDetails
 from app.core.exceptions import (
     NotAllowedError,
     NotFoundError,
     TeamCreationError,
     TeamRemovingError,
+    TeamUpdatingError,
 )
-from app.repositories import TeamRepository
 from app.schemas import TeamCreate, TeamRead, TeamUpdate
 from app.services.team_service import TeamService
 
@@ -21,10 +20,8 @@ router = APIRouter()
     summary="Получение списка команд волонтеров",
     description="Показывает список всех зарегистрированных команд.",
 )
-async def get_all_teams(
-    repo: TeamRepository = Depends(),
-) -> list[TeamRead]:
-    teams_db = await repo.get_multi()
+async def get_all_teams(service: TeamService = Depends()) -> list[TeamRead]:
+    teams_db = await service.get_all_teams()
     return [TeamRead.model_validate(obj=team_db) for team_db in teams_db]
 
 
@@ -34,16 +31,14 @@ async def get_all_teams(
     summary="Получение команды волонтеров",
     description="Показывает команду по ее идентификатору (id).",
 )
-async def get_team(team_id: int, repo: TeamRepository = Depends()) -> TeamRead:
-    team_db = await repo.get(id=team_id)
-    if not team_db:
+async def get_team(team_id: int, service: TeamService = Depends()) -> TeamRead:
+    try:
+        team_db = await service.get_team(obj_id=team_id)
+        return TeamRead.model_validate(obj=team_db)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Команда волонтеров", id=team_id
-            ),
-        )
-    return TeamRead.model_validate(obj=team_db)
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -75,18 +70,25 @@ async def create_team(
         по ее идентификатору (id).",
 )
 async def update_team(
-    team_id: int, team_in: TeamUpdate, repo: TeamRepository = Depends()
+    team_id: int, team_in: TeamUpdate, service: TeamService = Depends()
 ) -> TeamRead:
-    team_db = await repo.get(id=team_id)
-    if not team_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Команда волонтеров", id=team_id
-            ),
+    try:
+        team_update_db = await service.update_team(
+            team_id=team_id, team_in=team_in
         )
-    team_update_db = await repo.update(db_obj=team_db, obj_in=team_in)
-    return TeamRead.model_validate(obj=team_update_db)
+        return TeamRead.model_validate(obj=team_update_db)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        ) from e
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except TeamUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.post(
