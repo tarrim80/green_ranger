@@ -14,11 +14,9 @@ from app.core.exceptions import (
 from app.core.transaction_manager import atomic_transaction
 from app.models import Photo
 from app.repositories.photo import PhotoRepository
-from app.schemas import PhotoCreate
+from app.schemas import PhotoCreate, PhotoUpdate
 from app.services.mixins import UpdateObjMixin
 from app.utils.photo_uploader import save_uploaded_images
-
-from ..schemas.photo import PhotoUpdate
 
 
 class PhotoService(UpdateObjMixin):
