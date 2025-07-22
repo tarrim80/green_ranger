@@ -8,17 +8,19 @@ from app.core.exceptions import (
     NotFoundError,
     SurveyCreationError,
     SurveyRemovingError,
+    SurveyUpdatingError,
 )
 from app.core.transaction_manager import atomic_transaction
 from app.models import Photo, Survey
 from app.repositories.survey import SurveyRepository
-from app.schemas import SurveyCreate
+from app.schemas import SurveyCreate, SurveyUpdate
+from app.services.mixins import UpdateObjMixin
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
 from app.utils.photo_uploader import save_uploaded_images
 
 
-class SurveyService:
+class SurveyService(UpdateObjMixin):
     def __init__(
         self,
         repo: SurveyRepository = Depends(),
@@ -28,6 +30,27 @@ class SurveyService:
         self.repo = repo
         self.defect_service = defect_service
         self.photo_service = photo_service
+
+    async def get_all_surveys(
+        self,
+    ) -> list[Survey]:
+        surveys_db = await self.repo.get_multi()
+        return list(surveys_db)
+
+    async def get_survey(self, obj_id: int) -> Survey:
+        survey_db = await self.repo.get(id=obj_id)
+        if not survey_db:
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name=self.repo.model.verbose_name(),
+                    id=obj_id,
+                )
+            )
+        return survey_db
+
+    async def get_surveys_by_tree_id(self, tree_id: int) -> list[Survey]:
+        surveys_db = await self.repo.get_all_by_tree_id(tree_id=tree_id)
+        return list(surveys_db)
 
     async def create_with_photos(
         self, survey_in: SurveyCreate, files: list[UploadFile]
@@ -39,22 +62,21 @@ class SurveyService:
             )
             new_data = survey_in.model_dump()
             new_survey = Survey(**new_data)
-            self.repo.session.add(instance=new_survey)
-            await self.repo.session.flush()
-            for photo_data in photos_data:
-                new_data = {
-                    "file_path": photo_data["file_path"],
-                    "survey_id": new_survey.id,
-                }
-                new_photo = Photo(**new_data)
-                self.repo.session.add(instance=new_photo)
-            await self.repo.session.commit()
-            await self.repo.session.refresh(
-                instance=new_survey, attribute_names=["tree_photos"]
-            )
+            async with atomic_transaction(session=self.repo.session):
+                self.repo.session.add(instance=new_survey)
+                await self.repo.session.flush()
+                for photo_data in photos_data:
+                    new_data = {
+                        "file_path": photo_data["file_path"],
+                        "survey_id": new_survey.id,
+                    }
+                    new_photo = Photo(**new_data)
+                    self.repo.session.add(instance=new_photo)
+                await self.repo.session.refresh(
+                    instance=new_survey, attribute_names=["tree_photos"]
+                )
             return new_survey
         except Exception as e:
-            await self.repo.session.rollback()
             for filename in saved_file_paths:
                 os.remove(filename)
             raise SurveyCreationError(
@@ -66,7 +88,7 @@ class SurveyService:
         if not survey_db:
             raise NotFoundError(
                 ExceptionDetails.get_not_found_detail(
-                    model_name="Обследование", id=survey_id
+                    model_name=self.repo.model.verbose_name(), id=survey_id
                 )
             )
         photos_to_delete = []
@@ -85,6 +107,25 @@ class SurveyService:
             photos_to_delete.append(tree_photo_to_delete)
         await self.repo.remove(id=survey_id)
         return photos_to_delete
+
+    async def update_survey(self, obj_id: int, obj_in: SurveyUpdate) -> Survey:
+        try:
+            survey_db = await self.repo.get(id=obj_id)
+            if not survey_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(),
+                        id=obj_id,
+                    )
+                )
+            survey = await self.update_obj(db_obj=survey_db, obj_in=obj_in)
+            return survey
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise SurveyUpdatingError(
+                f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
+            ) from e
 
     async def delete_with_photos(self, survey_id: int) -> None:
         try:

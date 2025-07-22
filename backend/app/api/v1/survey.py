@@ -14,10 +14,10 @@ from app.core.exceptions import (
     PhotoCreationError,
     SurveyCreationError,
     SurveyRemovingError,
+    SurveyUpdatingError,
 )
 from app.core.user import current_user
 from app.models import User
-from app.repositories.survey import SurveyRepository
 from app.schemas import (
     PhotoRead,
     SurveyCreate,
@@ -39,9 +39,9 @@ router = APIRouter()
         в приложении.",
 )
 async def get_all_surveys(
-    repo: SurveyRepository = Depends(),
+    service: SurveyService = Depends(),
 ) -> list[SurveyRead]:
-    surveys_db = await repo.get_multi()
+    surveys_db = await service.get_all_surveys()
     return [
         SurveyRead.model_validate(obj=survey_db) for survey_db in surveys_db
     ]
@@ -55,17 +55,15 @@ async def get_all_surveys(
     description="Показывает обследование по идентификатору (id).",
 )
 async def get_survey(
-    survey_id: int, repo: SurveyRepository = Depends()
+    survey_id: int, service: SurveyService = Depends()
 ) -> SurveyRead:
-    survey_db = await repo.get(id=survey_id)
-    if not survey_db:
+    try:
+        survey_db = await service.get_survey(obj_id=survey_id)
+        return SurveyRead.model_validate(obj=survey_db)
+    except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Обследование", id=survey_id
-            ),
-        )
-    return SurveyRead.model_validate(obj=survey_db)
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
 
 
 @router.get(
@@ -77,9 +75,9 @@ async def get_survey(
         с определенным идентификатором (id).",
 )
 async def get_surveys_by_tree_id(
-    tree_id: int, repo: SurveyRepository = Depends()
+    tree_id: int, service: SurveyService = Depends()
 ) -> list[SurveyRead]:
-    surveys_db = await repo.get_all_by_tree_id(tree_id=tree_id)
+    surveys_db = await service.get_surveys_by_tree_id(tree_id=tree_id)
     return [
         SurveyRead.model_validate(obj=survey_db) for survey_db in surveys_db
     ]
@@ -165,18 +163,21 @@ async def add_tree_photos_to_survey(
 async def update_survey(
     survey_id: int,
     survey_in: SurveyUpdate,
-    repo: SurveyRepository = Depends(),
+    service: SurveyService = Depends(),
 ) -> SurveyRead:
-    survey_db = await repo.get(id=survey_id)
-    if not survey_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ExceptionDetails.get_not_found_detail(
-                model_name="Обследование", id=survey_id
-            ),
+    try:
+        survey_update_db = await service.update_survey(
+            obj_id=survey_id, obj_in=survey_in
         )
-    survey_update_db = await repo.update(db_obj=survey_db, obj_in=survey_in)
-    return SurveyRead.model_validate(obj=survey_update_db)
+        return SurveyRead.model_validate(obj=survey_update_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except SurveyUpdatingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
 
 @router.delete(
