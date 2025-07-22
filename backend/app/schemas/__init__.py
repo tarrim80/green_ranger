@@ -31,3 +31,22 @@ from app.schemas.survey_defect import (
 from app.schemas.team import TeamCreate, TeamRead, TeamShortRead, TeamUpdate
 from app.schemas.tree import TreeCreate, TreeRead, TreeUpdate
 from app.schemas.user import UserCreate, UserRead, UserShortRead, UserUpdate
+
+all_schemas = [
+    DefectTypeRead,
+    PhotoRead,
+    RoleRead,
+    SectorRead,
+    SectorShortRead,
+    SurveyRead,
+    SurveyShortRead,
+    SurveyDefectRead,
+    TeamRead,
+    TeamShortRead,
+    UserRead,
+    UserShortRead,
+]
+
+
+for schema in all_schemas:
+    schema.model_rebuild()

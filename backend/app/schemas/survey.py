@@ -1,13 +1,15 @@
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.defaults import SurveyDefaults
 from app.schemas.enums import SurveyStatusEnum, TreeConditionEnum
 from app.schemas.photo import PhotoRead
-from app.schemas.survey_defect import SurveyDefectRead
 from app.schemas.user import UserShortRead
+
+if TYPE_CHECKING:
+    from app.schemas.survey_defect import SurveyDefectRead
 
 SURVEY_FIELDS_CONFIG = {
     "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
@@ -60,6 +62,8 @@ SURVEY_FIELDS_CONFIG = {
         description="Список зафиксированных дефектов",
     ),
     "tree_photos": Field(description="Список фотографий общего вида растения"),
+    "created_at": Field(description="Дата и время проведения обследования"),
+    "updated_at": Field(description="Дата и время изменения данных"),
 }
 
 
@@ -126,5 +130,5 @@ class SurveyRead(SurveyShortRead):
         list[PhotoRead], SURVEY_FIELDS_CONFIG["tree_photos"]
     ]
     survey_defects: Annotated[
-        list[SurveyDefectRead], SURVEY_FIELDS_CONFIG["survey_defects"]
+        list["SurveyDefectRead"], SURVEY_FIELDS_CONFIG["survey_defects"]
     ]
