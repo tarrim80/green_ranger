@@ -6,4 +6,4 @@ from app.api.v1.survey import router as survey_router
 from app.api.v1.survey_defect import router as survey_defect_router
 from app.api.v1.team import router as team_router
 from app.api.v1.tree import router as tree_router
-from app.api.v1.user import router as user_router
+from app.api.v1.user import auth_router, user_router

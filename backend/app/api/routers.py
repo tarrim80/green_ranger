@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    auth_router,
     defect_type_router,
     photo_router,
     role_router,
@@ -14,7 +15,12 @@ from app.api.v1 import (
 
 main_router = APIRouter(prefix="/api/v1")
 
-main_router.include_router(router=user_router)
+main_router.include_router(
+    router=auth_router, prefix="/auth", tags=["Авторизация"]
+)
+main_router.include_router(
+    router=user_router, prefix="/users", tags=["Пользователи"]
+)
 main_router.include_router(router=role_router, prefix="/roles", tags=["Роли"])
 main_router.include_router(
     router=defect_type_router,

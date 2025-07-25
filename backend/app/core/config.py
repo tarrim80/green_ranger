@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from pydantic import computed_field
 from pydantic_settings import BaseSettings
 
@@ -13,6 +14,10 @@ class Settings(BaseSettings):
     postgres_host: str
     postgres_port: int
     secret: str = "SECRET"
+    refresh_secret: str = "REFRESH_SECRET"
+    access_token_lifetime_hours: int = 1
+    refresh_token_lifetime_days: int = 30
+    algorithm: str = "HS256"
     development_status: str = "PRODUCTION"
     timezone: str = "UTC"
 
@@ -28,6 +33,16 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
+    @computed_field
+    @property
+    def access_token_lifetime_seconds(self) -> int:
+        return self.access_token_lifetime_hours * 60 * 60
+
+    @computed_field
+    @property
+    def refresh_token_lifetime_seconds(self) -> int:
+        return self.refresh_token_lifetime_days * 24 * 60 * 60
 
     @computed_field
     @property
