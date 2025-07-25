@@ -1,4 +1,4 @@
-// frontend/src/stores/auth.js
+// frontend-worktree/src/stores/auth.js
 import { defineStore } from "pinia";
 import apiClient from "@/services/api";
 import router from "@/router";
@@ -9,6 +9,9 @@ export const useAuthStore = defineStore("auth", {
     refreshToken: localStorage.getItem("refreshToken") || null,
     user: null,
   }),
+  getters: {
+    isAuthenticated: (state) => !!state.accessToken,
+  },
   actions: {
     async login(credentials) {
       try {
@@ -31,6 +34,17 @@ export const useAuthStore = defineStore("auth", {
         console.error("Ошибка аутентификации:", error);
         alert("Неверный логин или пароль!");
       }
+    },
+
+    logout() {
+      this.accessToken = null;
+      this.refreshToken = null;
+      this.user = null;
+
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+
+      router.push("/login");
     },
   },
 });
