@@ -5,12 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
 from app.models import SurveyDefect
 from app.repositories.base import BaseRepository
 from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
-
-from ..core.constants import DEFAULT_LIMIT
 
 
 class SurveyDefectRepository(
