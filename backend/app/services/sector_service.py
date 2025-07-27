@@ -1,6 +1,9 @@
 from fastapi import Depends
+from geoalchemy2.elements import WKTElement
+from shapely.geometry import shape
 from sqlalchemy.exc import IntegrityError
 
+from app.core.constants import SRID_MERCATOR_WGS84
 from app.core.exceptions import (
     ExceptionDetails,
     NotAllowedError,
@@ -13,10 +16,10 @@ from app.core.transaction_manager import atomic_transaction
 from app.models import Sector
 from app.repositories.sector import SectorRepository
 from app.schemas import SectorCreate, SectorUpdate
-from app.services.mixins import DeleteObjMixin, UpdateObjMixin
+from app.services.mixins import DeleteObjMixin
 
 
-class SectorService(UpdateObjMixin, DeleteObjMixin):
+class SectorService(DeleteObjMixin):
     def __init__(
         self,
         repo: SectorRepository = Depends(),
@@ -41,20 +44,28 @@ class SectorService(UpdateObjMixin, DeleteObjMixin):
         return sector_db
 
     async def create_sector(self, sector_in: SectorCreate) -> Sector:
+        geometry_dict = sector_in.geometry.model_dump()
+        shapely_geom = shape(context=geometry_dict)
+        wkt_element = WKTElement(
+            data=shapely_geom.wkt, srid=SRID_MERCATOR_WGS84
+        )
+        sector_data = sector_in.model_dump()
+        sector_data["geometry"] = wkt_element
         try:
             async with atomic_transaction(session=self.repo.session):
-                new_sector = await self.repo.create(obj_in=sector_in)
+                new_sector = self.repo.model(**sector_data)
+                self.repo.session.add(instance=new_sector)
                 await self.repo.session.flush()
                 await self.repo.session.refresh(instance=new_sector)
             return new_sector
+        except IntegrityError as e:
+            raise SectorCreationError(
+                ExceptionDetails.ALREADY_EXIST_SECTOR_NAME
+            ) from e
         except Exception as e:
-            if isinstance(e, IntegrityError):
-                raise SectorCreationError(
-                    ExceptionDetails.ALREADY_EXIST_SECTOR_NAME
-                )
             raise SectorCreationError(
                 f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
-            )
+            ) from e
 
     async def update_sector(self, obj_id: int, obj_in: SectorUpdate) -> Sector:
         try:
@@ -66,8 +77,21 @@ class SectorService(UpdateObjMixin, DeleteObjMixin):
                         id=obj_id,
                     )
                 )
-            sector = await self.update_obj(db_obj=sector_db, obj_in=obj_in)
-            return sector
+            update_data = obj_in.model_dump()
+            if geometry_dict := update_data.get("geometry", None):
+                shapely_geom = shape(context=geometry_dict)
+                wkt_element = WKTElement(
+                    data=shapely_geom.wkt, srid=SRID_MERCATOR_WGS84
+                )
+                update_data["geometry"] = wkt_element
+            async with atomic_transaction(session=self.repo.session):
+                for field, value in update_data.items():
+                    setattr(sector_db, field, value)
+
+                self.repo.session.add(instance=sector_db)
+                await self.repo.session.flush()
+                await self.repo.session.refresh(instance=sector_db)
+            return sector_db
         except NotFoundError:
             raise
         except Exception as e:
