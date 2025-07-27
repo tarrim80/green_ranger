@@ -1,3 +1,6 @@
+SAFE_METHODS = ["get", "options", "head"]
+
+
 class ValidationMessages:
     LEADER_NOT_A_MEMBER = "Лидер команды должен входить в список участников"
     PHOTO_HAS_NO_LINKS = (
