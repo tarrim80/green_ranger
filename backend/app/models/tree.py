@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.constants import SRID_MERCATOR_WGS84
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
 from app.schemas.defaults import TreeDefaults
@@ -31,7 +32,7 @@ class Tree(
     )
     description: Mapped[str] = mapped_column(Text, comment="Описание растения")
     location: Mapped[Geometry] = mapped_column(
-        Geometry(geometry_type="POINT", srid=4326),
+        Geometry(geometry_type="POINT", srid=SRID_MERCATOR_WGS84),
         comment="Местоположение растения",
     )
     azimuth: Mapped[float | None] = mapped_column(

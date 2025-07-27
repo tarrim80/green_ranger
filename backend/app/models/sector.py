@@ -4,9 +4,10 @@ from geoalchemy2 import Geometry
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.schemas.defaults import SectorDefaults
+from app.core.constants import SRID_MERCATOR_WGS84
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
+from app.schemas.defaults import SectorDefaults
 
 if TYPE_CHECKING:
     from app.models import Team, Tree, User
@@ -45,7 +46,7 @@ class Sector(
         comment="Цвет для отображения участка на карте (HEX)",
     )
     geometry: Mapped[Geometry] = mapped_column(
-        Geometry("POLYGON", srid=4326),
+        Geometry("POLYGON", srid=SRID_MERCATOR_WGS84),
         comment="Геометрия (полигон) участка",
     )
 
