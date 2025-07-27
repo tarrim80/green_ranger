@@ -14,12 +14,7 @@ from app.core.config import settings
 from app.core.constants import TOKEN_TYPE
 from app.core.db import get_async_session
 from app.core.exceptions import ExceptionDetails
-from app.core.user import (
-    UserManager,
-    auth_backend,
-    fastapi_users,
-    get_user_manager,
-)
+from app.core.user import UserManager, fastapi_users, get_user_manager
 from app.models import User
 from app.schemas.user import UserCreate, UserRead, UserShortRead, UserUpdate
 
@@ -29,10 +24,6 @@ auth_router = APIRouter()
 
 user_router = APIRouter(
     dependencies=[Depends(bearer_scheme)],
-)
-
-auth_router.include_router(
-    router=fastapi_users.get_auth_router(backend=auth_backend),
 )
 
 auth_router.include_router(
@@ -57,7 +48,7 @@ async def auth_login(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверное имя пользователя или пароль",
+            detail=ExceptionDetails.INVALID_USERNAME_OR_PASSWORD,
             headers={"WWW-Authenticate": "Bearer"},
         )
     token_type = TOKEN_TYPE
@@ -81,7 +72,9 @@ async def auth_logout(
 @auth_router.post(
     "/jwt/refresh",
     responses={
-        401: {"description": "Невалидный или просроченный refresh-токен"}
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": ExceptionDetails.INVALID_TOKEN
+        }
     },
 )
 async def auth_jwt_refresh(
@@ -93,25 +86,25 @@ async def auth_jwt_refresh(
             jwt=token.credentials,
             key=settings.refresh_secret,
             algorithms=[settings.algorithm],
+            audience=["fastapi-users:refresh"],
         )
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Невалидный или просроченный refresh-токен.",
+            detail=ExceptionDetails.INVALID_TOKEN,
             headers={"WWW-Authenticate": "Bearer"},
         )
     user_id = int(payload.get("sub"))
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            # TODO: Вписать в ExceptionDetails
-            detail="Не удалось получить идентификатор пользователя из токена.",
+            detail=ExceptionDetails.INVALID_USER_ID,
         )
     user = await user_manager.get(user_id)
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Пользователь не найден или неактивен.",
+            detail=ExceptionDetails.NOT_FOUND_OR_NOT_ACTIVE_USER,
         )
     access_token = await create_access_token(user=user)
     refresh_token = await create_refresh_token(user=user)
