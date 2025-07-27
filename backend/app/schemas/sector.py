@@ -1,7 +1,10 @@
 from typing import TYPE_CHECKING, Annotated
 
+from geoalchemy2.elements import WKBElement
 from geojson_pydantic import Polygon
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from shapely.geometry import mapping
+from shapely.wkb import loads as wkb_loads
 
 if TYPE_CHECKING:
     from app.schemas import TeamShortRead, UserShortRead
@@ -66,9 +69,19 @@ class SectorUpdate(BaseModel):
 class SectorRead(SectorBase):
     id: Annotated[int, SECTOR_FIELDS_CONFIG["id"]]
     curator: Annotated["UserShortRead", SECTOR_FIELDS_CONFIG["curator"]]
-    team: Annotated["TeamShortRead", SECTOR_FIELDS_CONFIG["team"]]
+    team: Annotated["TeamShortRead | None", SECTOR_FIELDS_CONFIG["team"]] = (
+        None
+    )
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("geometry", mode="before")
+    @classmethod
+    def parse_geometry(cls, element: WKBElement | dict) -> dict:
+        """Преобразует WKBElement из БД в GeoJSON-совместимый словарь."""
+        if isinstance(element, WKBElement):
+            return mapping(wkb_loads(element.data))
+        return element
 
 
 class SectorShortRead(BaseModel):
