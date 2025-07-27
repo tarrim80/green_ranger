@@ -119,6 +119,7 @@ class ExceptionDetails:
     def get_not_found_detail(model_name: str, id: int) -> str:
         return f"Не найден объект: {model_name} с идентификатором {id}"
 
+    ACCESS_FORBIDDEN = "Доступ запрещен"
     ALREADY_EXIST_DEFECT_TYPE_NAME = (
         "Вид дефекта с таким названием уже существует"
     )
