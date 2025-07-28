@@ -1,4 +1,5 @@
-from app.schemas import DefectStatusEnum, SurveyStatusEnum, TreeConditionEnum
+from app.schemas import DefectStatusEnum, SurveyStatusEnum, TreeConditionEnum, RoleEnum
+
 
 
 class SurveyDefaults:
@@ -19,3 +20,6 @@ class SectorDefaults:
 class TreeDefaults:
     CONDITION = TreeConditionEnum.HEALTHY
     IS_EMERGENCY = False
+
+class UserDefaults:
+    ROLE = RoleEnum.VOLUNTEER

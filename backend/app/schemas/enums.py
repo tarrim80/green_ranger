@@ -1,8 +1,16 @@
 from enum import StrEnum
 
 
+class RoleEnum(StrEnum):
+    """Роли пользователей."""
+
+    ADMIN = "Администратор"
+    CURATOR = "Куратор"
+    VOLUNTEER = "Волонтёр"
+
+
 class TreeConditionEnum(StrEnum):
-    """Состояния растения. КСО"""
+    """Состояния растения. КСО."""
 
     HEALTHY = "Здоровое"
     WEAKENED = "Ослабленное"

@@ -3,7 +3,6 @@
 from app.models import (
     Base,
     DefectType,
-    Role,
     Sector,
     Survey,
     SurveyDefect,

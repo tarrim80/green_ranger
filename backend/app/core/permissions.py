@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from app.core.exceptions import ExceptionDetails
 from app.core.user import current_user
 from app.models import User
+from app.schemas.enums import RoleEnum
 
 
 class BasePermission:
@@ -14,25 +15,23 @@ class BasePermission:
 
 class IsVolunteer(BasePermission):
     async def has_permission(self, user: User) -> bool:
-        has_role = any(
-            role.name.lower() in ("волонтер", "волонтёр")
-            for role in user.roles
+        return user.role == RoleEnum.VOLUNTEER or await super().has_permission(
+            user
         )
-        return has_role or await super().has_permission(user)
 
 
 class IsCurator(IsVolunteer):
     async def has_permission(self, user: User) -> bool:
-        has_role = any(role.name.lower() == "куратор" for role in user.roles)
-        return has_role or await super().has_permission(user)
+        return user.role == RoleEnum.CURATOR or await super().has_permission(
+            user
+        )
 
 
 class IsAdmin(IsCurator):
     async def has_permission(self, user: User) -> bool:
-        has_role = any(
-            role.name.lower() == "администратор" for role in user.roles
+        return user.role == RoleEnum.ADMIN or await super().has_permission(
+            user
         )
-        return has_role or await super().has_permission(user)
 
 
 def permission_dependency(permission: Type[BasePermission]):

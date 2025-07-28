@@ -90,18 +90,6 @@ class PhotoRemovingError(AppException):
     pass
 
 
-class RoleCreationError(AppException):
-    pass
-
-
-class RoleUpdatingError(AppException):
-    pass
-
-
-class RoleRemovingError(AppException):
-    pass
-
-
 class NotFoundError(AppException):
     pass
 

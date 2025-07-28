@@ -6,11 +6,11 @@ from app.schemas.defect_type import (
 )
 from app.schemas.enums import (
     DefectStatusEnum,
+    RoleEnum,
     SurveyStatusEnum,
     TreeConditionEnum,
 )
 from app.schemas.photo import PhotoCreate, PhotoRead, PhotoUpdate
-from app.schemas.role import RoleCreate, RoleRead, RoleUpdate
 from app.schemas.sector import (
     SectorCreate,
     SectorRead,
@@ -41,7 +41,6 @@ from app.schemas.user import UserCreate, UserRead, UserShortRead, UserUpdate
 all_schemas = [
     DefectTypeRead,
     PhotoRead,
-    RoleRead,
     SectorRead,
     SectorShortRead,
     SurveyRead,

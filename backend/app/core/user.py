@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import jwt_strategy
 from app.core.config import settings
 from app.core.db import get_async_session
-from app.models import Role, User
+from app.models import User
 from app.schemas import UserCreate
 
 
@@ -66,28 +66,15 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             raise exceptions.UserAlreadyExists()
 
         user_dict = user_create.model_dump()
-        role_ids = user_dict.pop("role_ids", None)
+        user_dict.pop("role", None)
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
 
         created_user = await self.user_db.create(user_dict)
 
-        if role_ids:
-            session = cast(AsyncSession, self.session)
-            result = await session.execute(
-                select(Role).where(Role.id.in_(role_ids))
-            )
-            roles = list(result.scalars().all())
-            if len(roles) != len(role_ids):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Одна или несколько указанных ролей не существуют.",
-                )
-
-            created_user.roles = roles
-            session.add(created_user)
-            await session.commit()
-            await session.refresh(created_user)
+        self.session.add(created_user)
+        await self.session.commit()
+        await self.session.refresh(created_user)
 
         return created_user
 
@@ -108,9 +95,9 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def on_after_register(
         self, user: User, request: Request | None = None
     ):
+        # TODO: Logging
         print(f"Пользователь {user.email} зарегистрирован.")
-        if user.roles:
-            await self.session.refresh(user, ["roles"])
+        await self.session.refresh(user, ["role"])
 
 
 async def get_user_manager(
