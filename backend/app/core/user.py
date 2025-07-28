@@ -1,6 +1,4 @@
-from typing import cast
-
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi_users import (
     BaseUserManager,
     FastAPIUsers,
@@ -14,7 +12,6 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import jwt_strategy
