@@ -8,6 +8,7 @@ from app.core.exceptions import (
     SectorRemovingError,
     SectorUpdatingError,
 )
+from app.core.permissions import IsAdmin, IsCurator, permission_dependency
 from app.schemas import SectorCreate, SectorRead, SectorUpdate
 from app.services.sector_service import SectorService
 
@@ -53,6 +54,9 @@ async def get_sector(
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового участка",
     description="Создает новый учетный участок в системе.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def create_sector(
     sector_in: SectorCreate, service: SectorService = Depends()
@@ -73,6 +77,9 @@ async def create_sector(
     summary="Изменение учетного участка",
     description="Изменяет поля записи в конкретном участке \
         по его идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def update_sector(
     sector_id: int, sector_in: SectorUpdate, service: SectorService = Depends()
@@ -100,6 +107,9 @@ async def update_sector(
         Невозможно удалить участок, на котором зарегистрированны \
             растения./nНевозможно удалить участок, к которому прикреплена \
                 команда волонтеров",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def delete_sector(
     sector_id: int, service: SectorService = Depends()

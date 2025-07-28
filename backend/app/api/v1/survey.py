@@ -16,6 +16,7 @@ from app.core.exceptions import (
     SurveyRemovingError,
     SurveyUpdatingError,
 )
+from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.core.user import current_user
 from app.models import User
 from app.schemas import (
@@ -90,6 +91,9 @@ async def get_surveys_by_tree_id(
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового обследования",
     description="Создает новое обследование растения.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
+    ],
 )
 async def create_survey(
     tree_id: int = Form(default=...),
@@ -136,6 +140,9 @@ async def create_survey(
     summary="Добавление фотографий растения",
     description="Загружает одну или несколько фотографий общего вида\
         растения и привязывает их к существующему обследованию.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
+    ],
 )
 async def add_tree_photos_to_survey(
     survey_id: int,
@@ -160,6 +167,9 @@ async def add_tree_photos_to_survey(
     response_model=SurveyRead,
     summary="Изменение обследования",
     description="Изменяет поля записи обследования по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def update_survey(
     survey_id: int,
@@ -186,6 +196,9 @@ async def update_survey(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление конкретного обследования",
     description="Удаляет обследование по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def delete_survey(
     survey_id: int, service: SurveyService = Depends()

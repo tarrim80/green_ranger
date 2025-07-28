@@ -9,6 +9,7 @@ from app.core.exceptions import (
     NotFoundError,
     PhotoCreationError,
 )
+from app.core.permissions import IsAdmin, permission_dependency
 from app.schemas import (
     DefectTypeCreate,
     DefectTypeRead,
@@ -62,6 +63,9 @@ async def get_defect_type(
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового вида дефекта",
     description="Создает новый вид дефекта в справочнике.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def create_defect_type(
     name: str = Form(default=...),
@@ -92,6 +96,9 @@ async def create_defect_type(
     summary="Добавление избражений к виду дефекта",
     description="Загружает одно или несколько изображений \
         и привязывает их к существующему виду дефекта.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def add_images_to_defect_type(
     defect_type_id: int,
@@ -116,6 +123,9 @@ async def add_images_to_defect_type(
     response_model=DefectTypeRead,
     summary="Изменение вида дефекта",
     description="Изменяет поля записи вида дефекта по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def update_defect_type(
     defect_type_id: int,
@@ -142,6 +152,9 @@ async def update_defect_type(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление вида дефекта",
     description="Удаляет вид дефекта по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def delete_defect_type(
     defect_type_id: int, service: DefectTypeService = Depends()

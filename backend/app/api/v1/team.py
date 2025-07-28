@@ -8,6 +8,7 @@ from app.core.exceptions import (
     TeamRemovingError,
     TeamUpdatingError,
 )
+from app.core.permissions import IsAdmin, permission_dependency
 from app.schemas import TeamCreate, TeamRead, TeamUpdate
 from app.services.team_service import TeamService
 
@@ -47,6 +48,9 @@ async def get_team(team_id: int, service: TeamService = Depends()) -> TeamRead:
     status_code=status.HTTP_201_CREATED,
     summary="Создание новой команды волонтеров",
     description="Создает новую команду в системе.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def create_team(
     team_in: TeamCreate,
@@ -68,6 +72,9 @@ async def create_team(
     summary="Изменение команды волонтеров",
     description="Изменяет поля записи в команде \
         по ее идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def update_team(
     team_id: int, team_in: TeamUpdate, service: TeamService = Depends()
@@ -98,6 +105,9 @@ async def update_team(
     summary="Добаление в команду волонтеров",
     description="Добавляет в команду с идентификатором (id) одного \
         или нескольких волонтеровю",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def add_members_to_team(
     team_id: int,
@@ -133,6 +143,9 @@ async def add_members_to_team(
     summary="Исключение волонтеров из команды",
     description="Исключает из команды с идентификатором (id) одного \
         или нескольких волонтеров.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def remove_members_from_team(
     team_id: int,
@@ -167,6 +180,9 @@ async def remove_members_from_team(
     summary="Удаление команды волонтеров",
     description="Удаляет команду по ее идентификатору (id)./n\
         Невозможно удалить команду, к которой прикреплены волонтеры",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def delete_team(team_id: int, service: TeamService = Depends()) -> None:
     try:

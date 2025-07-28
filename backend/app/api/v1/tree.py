@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.core.exceptions import (
-    ExceptionDetails,
     NotAllowedError,
     NotFoundError,
     TreeCreationError,
@@ -67,6 +67,9 @@ async def get_trees_by_sector_id(
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового растения",
     description="Создает новое растение (дерево).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
+    ],
 )
 async def create_tree(
     tree_in: TreeCreate,
@@ -90,6 +93,9 @@ async def create_tree(
     response_model=TreeRead,
     summary="Изменение растения",
     description="Изменяет поля записи растения по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def update_tree(
     tree_id: int,
@@ -116,6 +122,9 @@ async def update_tree(
     description="Нельзя удалять зарегистрированные растения. Измените статус \
         растения на `Растение удалено`",
     deprecated=True,
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def delete_tree(tree_id: int, service: TreeService = Depends()) -> None:
     try:

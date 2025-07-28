@@ -8,7 +8,7 @@ from app.core.exceptions import (
     PhotoRemovingError,
     PhotoUpdatingError,
 )
-from app.repositories import PhotoRepository
+from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.schemas import PhotoRead, PhotoUpdate
 from app.services.photo_service import PhotoService
 
@@ -21,6 +21,9 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Загрузка одной или нескольких фотографий",
     description="Принимает один или несколько файлов и сохраняет их.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
+    ],
 )
 async def upload_photos(
     files: list[UploadFile] = File(default=...),
@@ -55,6 +58,9 @@ async def upload_photos(
     response_model=PhotoRead,
     summary="Изменение фотографии",
     description="Изменяет связи фотографии.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def update_photo(
     photo_id: int, photo_in: PhotoUpdate, service: PhotoService = Depends()
@@ -84,6 +90,9 @@ async def update_photo(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление фото",
     description="Удаляет фото и запись в БД по его идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def delete_photo(
     photo_id: int, service: PhotoService = Depends()

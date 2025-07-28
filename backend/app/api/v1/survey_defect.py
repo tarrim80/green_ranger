@@ -16,6 +16,7 @@ from app.core.exceptions import (
     SurveyDefectRemovingError,
     SurveyDefectUpdatingError,
 )
+from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.schemas import (
     DefectStatusEnum,
     PhotoRead,
@@ -89,6 +90,9 @@ async def get_survey_defects_by_survey_id(
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового обнаруженного дефекта",
     description="Создает новый обнаруженный дефект.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
+    ],
 )
 async def create_defect(
     survey_id: int,
@@ -123,6 +127,9 @@ async def create_defect(
     summary="Добавление фотографий к дефекту",
     description="Загружает одну или несколько фотографий \
         и привязывает их к существующему дефекту.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
+    ],
 )
 async def add_photos_to_defect(
     defect_id: int, files: list[UploadFile], service: PhotoService = Depends()
@@ -145,6 +152,9 @@ async def add_photos_to_defect(
     response_model=SurveyDefectRead,
     summary="Изменение обнаруженного дефекта",
     description="Изменяет поля записи дефекта по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def update_defect(
     defect_id: int,
@@ -171,6 +181,9 @@ async def update_defect(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление конкретного дефекта",
     description="Удаляет дефект по идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsCurator))
+    ],
 )
 async def delete_defect(
     defect_id: int, service: SurveyDefectService = Depends()

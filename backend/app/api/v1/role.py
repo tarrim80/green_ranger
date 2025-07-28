@@ -6,6 +6,7 @@ from app.core.exceptions import (
     RoleRemovingError,
     RoleUpdatingError,
 )
+from app.core.permissions import IsAdmin, permission_dependency
 from app.schemas import RoleCreate, RoleRead, RoleUpdate
 from app.services.role_service import RoleService
 
@@ -48,6 +49,9 @@ async def get_role(role_id: int, service: RoleService = Depends()) -> RoleRead:
     summary="Создание новой роли",
     description="Создает новую уникальную роль в системе. \
         Используется для разграничения прав доступа пользователей.",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def create_role(
     role_in: RoleCreate,
@@ -63,6 +67,9 @@ async def create_role(
     summary="Изменение роли",
     description="Изменяет поля записи в конкретной роли \
         по ее идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def update_role(
     role_id: int,
@@ -89,6 +96,9 @@ async def update_role(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление роли",
     description="Удаляет роль по ее идентификатору (id).",
+    dependencies=[
+        Depends(dependency=permission_dependency(permission=IsAdmin))
+    ],
 )
 async def delete_role(role_id: int, service: RoleService = Depends()) -> None:
     try:
