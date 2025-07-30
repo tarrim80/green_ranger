@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
-from app.models import SurveyDefect
+from app.models import Survey, SurveyDefect, Tree
 from app.repositories.base import BaseRepository
 from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
 
@@ -28,13 +28,26 @@ class SurveyDefectRepository(
     async def get_all_by_survey_id(
         self, survey_id: int
     ) -> Sequence[SurveyDefect]:
-        statement = select(self.model).where(self.model.survey_id == survey_id)
+        statement = (
+            select(self.model)
+            .options(
+                selectinload(self.model.survey)
+                .selectinload(Survey.tree)
+                .selectinload(Tree.sector)
+            )
+            .where(self.model.survey_id == survey_id)
+        )
         defects_db = await self.session.execute(statement=statement)
         return defects_db.scalars().all()
 
     async def get(self, id: int) -> SurveyDefect | None:
         statement = (
             select(self.model)
+            .options(
+                selectinload(self.model.survey)
+                .selectinload(Survey.tree)
+                .selectinload(Tree.sector)
+            )
             .options(selectinload(self.model.photos))
             .where(self.model.id == id)
         )
@@ -46,6 +59,11 @@ class SurveyDefectRepository(
     ) -> Sequence[SurveyDefect]:
         statement = (
             select(self.model)
+            .options(
+                selectinload(self.model.survey)
+                .selectinload(Survey.tree)
+                .selectinload(Tree.sector)
+            )
             .options(selectinload(self.model.photos))
             .offset(offset=skip)
             .limit(limit=limit)

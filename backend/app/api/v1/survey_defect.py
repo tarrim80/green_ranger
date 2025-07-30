@@ -11,12 +11,15 @@ from fastapi import (
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
+    PermissionDenniedError,
     PhotoCreationError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,
     SurveyDefectUpdatingError,
 )
 from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
+from app.core.user import current_user
+from app.models import User
 from app.schemas import (
     DefectStatusEnum,
     PhotoRead,
@@ -160,15 +163,20 @@ async def update_defect(
     defect_id: int,
     defect_in: SurveyDefectUpdate,
     service: SurveyDefectService = Depends(),
+    user: User = Depends(current_user),
 ) -> SurveyDefectRead:
     try:
         defect_update_db = await service.update_defect(
-            obj_id=defect_id, obj_in=defect_in
+            obj_id=defect_id, obj_in=defect_in, user=user
         )
         return SurveyDefectRead.model_validate(obj=defect_update_db)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except SurveyDefectUpdatingError as e:
         raise HTTPException(
@@ -186,14 +194,20 @@ async def update_defect(
     ],
 )
 async def delete_defect(
-    defect_id: int, service: SurveyDefectService = Depends()
+    defect_id: int,
+    service: SurveyDefectService = Depends(),
+    user: User = Depends(current_user),
 ) -> None:
     try:
-        await service.delete_with_photos(defect_id=defect_id)
+        await service.delete_with_photos(defect_id=defect_id, user=user)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except SurveyDefectRemovingError as e:
         raise HTTPException(

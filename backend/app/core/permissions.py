@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 
 from app.core.exceptions import ExceptionDetails
 from app.core.user import current_user
-from app.models import Survey, Tree, User
+from app.models import Survey, SurveyDefect, Tree, User
 from app.schemas.enums import RoleEnum, SurveyStatusEnum
 
 T = TypeVar("T")
@@ -72,6 +72,33 @@ class IsSurveyOwnerOrCurator(BaseObjectPermission[Survey]):
         if user.role == RoleEnum.VOLUNTEER:
             is_owner = obj.author_id == user.id
             is_status_correct = obj.survey_status in (
+                SurveyStatusEnum.ON_REVIEW,
+                SurveyStatusEnum.NEEDS_CORRECTION,
+            )
+            return is_owner and is_status_correct
+
+        return False
+
+
+class IsSurveyDefectOwnerOrCurator(BaseObjectPermission[SurveyDefect]):
+    """
+    Проверяет права на изменение конкретного дефекта.
+
+    Доступ разрешен администраторам, кураторам своего участка,
+    а также авторам обследования с корректным статусом.
+    """
+
+    async def has_obj_permission(self, user: User, obj: SurveyDefect) -> bool:
+        """Проверяет, что пользователь является владельцем или куратором."""
+        if user.role == RoleEnum.ADMIN:
+            return True
+
+        if user.role == RoleEnum.CURATOR:
+            return obj.survey.tree.sector.curator_id == user.id
+
+        if user.role == RoleEnum.VOLUNTEER:
+            is_owner = obj.survey.author_id == user.id
+            is_status_correct = obj.survey.survey_status in (
                 SurveyStatusEnum.ON_REVIEW,
                 SurveyStatusEnum.NEEDS_CORRECTION,
             )

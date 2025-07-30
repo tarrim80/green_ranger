@@ -6,12 +6,14 @@ from fastapi import Depends, UploadFile
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
+    PermissionDenniedError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,
     SurveyDefectUpdatingError,
 )
+from app.core.permissions import IsSurveyDefectOwnerOrCurator
 from app.core.transaction_manager import atomic_transaction
-from app.models import Photo, SurveyDefect
+from app.models import Photo, SurveyDefect, User
 from app.repositories.survey_defect import SurveyDefectRepository
 from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
 from app.services.mixins.base_update import UpdateObjMixin
@@ -83,7 +85,7 @@ class SurveyDefectService(UpdateObjMixin):
             )
 
     async def update_defect(
-        self, obj_id: int, obj_in: SurveyDefectUpdate
+        self, obj_id: int, obj_in: SurveyDefectUpdate, user: User
     ) -> SurveyDefect:
         try:
             defect_db = await self.repo.get(id=obj_id)
@@ -94,43 +96,65 @@ class SurveyDefectService(UpdateObjMixin):
                         id=obj_id,
                     )
                 )
+            permission = (
+                await IsSurveyDefectOwnerOrCurator().has_obj_permission(
+                    user=user, obj=defect_db
+                )
+            )
+            if not permission:
+                raise PermissionDenniedError(
+                    ExceptionDetails.NO_RIGHNT_FOR_ACTION
+                )
             defect = await self.update_obj(db_obj=defect_db, obj_in=obj_in)
             return defect
         except NotFoundError:
+            raise
+        except PermissionDenniedError:
             raise
         except Exception as e:
             raise SurveyDefectUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(self, defect_id: int) -> list[Path]:
-        defect_db = await self.repo.get(id=defect_id)
-        if not defect_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(), id=defect_id
-                )
-            )
-        photos_to_delete: list[Path] = []
+    async def _stage_deletion(self, defect_db: SurveyDefect) -> list[Path]:
+        photos_to_delete = []
         for photo in defect_db.photos:
             photo_path = await self.photo_service._stage_deletion(
                 photo_id=photo.id
             )
             photos_to_delete.append(photo_path)
-        await self.repo.remove(id=defect_id)
+        await self.repo.remove(id=defect_db.id)
         return photos_to_delete
 
-    async def delete_with_photos(self, defect_id: int) -> None:
+    async def delete_with_photos(self, defect_id: int, user: User) -> None:
         try:
+            defect_db = await self.repo.get(id=defect_id)
+            if not defect_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(), id=defect_id
+                    )
+                )
+            permission = (
+                await IsSurveyDefectOwnerOrCurator().has_obj_permission(
+                    user=user, obj=defect_db
+                )
+            )
+            if not permission:
+                raise PermissionDenniedError(
+                    ExceptionDetails.NO_RIGHNT_FOR_ACTION
+                )
             async with atomic_transaction(session=self.repo.session):
                 photos_to_delete = await self._stage_deletion(
-                    defect_id=defect_id
+                    defect_db=defect_db
                 )
             if photos_to_delete:
                 for path in photos_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
         except NotFoundError:
+            raise
+        except PermissionDenniedError:
             raise
         except Exception as e:
             raise SurveyDefectRemovingError(

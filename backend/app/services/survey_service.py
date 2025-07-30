@@ -90,7 +90,7 @@ class SurveyService(UpdateObjMixin):
         for survey_defect in survey_db.survey_defects:
             defect_photos_to_delete = (
                 await self.defect_service._stage_deletion(
-                    defect_id=survey_defect.id
+                    defect_db=survey_defect
                 )
             )
             if defect_photos_to_delete:
