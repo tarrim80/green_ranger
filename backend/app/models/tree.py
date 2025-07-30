@@ -12,7 +12,7 @@ from app.schemas.defaults import TreeDefaults
 from app.schemas.enums import TreeConditionEnum
 
 if TYPE_CHECKING:
-    from app.models import Sector, User
+    from app.models import Sector, Survey, User
 
 
 class Tree(
@@ -80,3 +80,4 @@ class Tree(
         onupdate=func.now(),
         comment="Дата и время изменения записи",
     )
+    surveys: Mapped[list["Survey"]] = relationship(back_populates="tree")

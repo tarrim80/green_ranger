@@ -10,7 +10,7 @@ from app.schemas.defaults import SurveyDefaults
 from app.schemas.enums import SurveyStatusEnum, TreeConditionEnum
 
 if TYPE_CHECKING:
-    from app.models import Photo, Sector, SurveyDefect, User
+    from app.models import Photo, SurveyDefect, Tree, User
 
 
 class Survey(IntIdPkMixin, Base):
@@ -23,6 +23,7 @@ class Survey(IntIdPkMixin, Base):
         ForeignKey("tree.id"),
         comment="ID растения",
     )
+    tree: Mapped["Tree"] = relationship(back_populates="surveys")
     age: Mapped[int | None] = mapped_column(comment="Возраст растения")
     height: Mapped[float | None] = mapped_column(
         comment="Высота растения в метрах"
