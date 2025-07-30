@@ -6,12 +6,14 @@ from fastapi import Depends, UploadFile
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
+    PermissionDenniedError,
     SurveyCreationError,
     SurveyRemovingError,
     SurveyUpdatingError,
 )
+from app.core.permissions import IsSurveyOwnerOrCurator
 from app.core.transaction_manager import atomic_transaction
-from app.models import Photo, Survey
+from app.models import Photo, Survey, User
 from app.repositories.survey import SurveyRepository
 from app.schemas import SurveyCreate, SurveyUpdate
 from app.services.mixins import UpdateObjMixin
@@ -83,14 +85,7 @@ class SurveyService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY}: {e}"
             )
 
-    async def _stage_deletion(self, survey_id: int) -> list[Path]:
-        survey_db = await self.repo.get(id=survey_id)
-        if not survey_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(), id=survey_id
-                )
-            )
+    async def _stage_deletion(self, survey_db: Survey) -> list[Path]:
         photos_to_delete = []
         for survey_defect in survey_db.survey_defects:
             defect_photos_to_delete = (
@@ -105,10 +100,12 @@ class SurveyService(UpdateObjMixin):
                 photo_id=tree_photo.id
             )
             photos_to_delete.append(tree_photo_to_delete)
-        await self.repo.remove(id=survey_id)
+        await self.repo.remove(id=survey_db.id)
         return photos_to_delete
 
-    async def update_survey(self, obj_id: int, obj_in: SurveyUpdate) -> Survey:
+    async def update_survey(
+        self, obj_id: int, obj_in: SurveyUpdate, user: User
+    ) -> Survey:
         try:
             survey_db = await self.repo.get(id=obj_id)
             if not survey_db:
@@ -118,26 +115,51 @@ class SurveyService(UpdateObjMixin):
                         id=obj_id,
                     )
                 )
+            permission = await IsSurveyOwnerOrCurator().has_obj_permission(
+                user=user, obj=survey_db
+            )
+            if not permission:
+                raise PermissionDenniedError(
+                    ExceptionDetails.NO_RIGHNT_FOR_ACTION
+                )
             survey = await self.update_obj(db_obj=survey_db, obj_in=obj_in)
             return survey
         except NotFoundError:
+            raise
+        except PermissionDenniedError:
             raise
         except Exception as e:
             raise SurveyUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def delete_with_photos(self, survey_id: int) -> None:
+    async def delete_with_photos(self, survey_id: int, user: User) -> None:
         try:
+            survey_db = await self.repo.get(id=survey_id)
+            if not survey_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(), id=survey_id
+                    )
+                )
+            permission = await IsSurveyOwnerOrCurator().has_obj_permission(
+                user=user, obj=survey_db
+            )
+            if not permission:
+                raise PermissionDenniedError(
+                    ExceptionDetails.NO_RIGHNT_FOR_ACTION
+                )
             async with atomic_transaction(session=self.repo.session):
                 photos_to_delete = await self._stage_deletion(
-                    survey_id=survey_id
+                    survey_db=survey_db
                 )
             if photos_to_delete:
                 for path in photos_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
         except NotFoundError:
+            raise
+        except PermissionDenniedError:
             raise
         except Exception as e:
             raise SurveyRemovingError(

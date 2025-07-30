@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
-from app.models import Survey
+from app.models import Survey, Tree
 from app.repositories.base import BaseRepository
 from app.schemas import SurveyCreate, SurveyUpdate
 
@@ -26,6 +26,7 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
     async def get(self, id: int) -> Survey | None:
         statement = (
             select(self.model)
+            .options(selectinload(self.model.tree).selectinload(Tree.sector))
             .options(selectinload(self.model.tree_photos))
             .options(selectinload(self.model.survey_defects))
             .where(self.model.id == id)
@@ -38,6 +39,7 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
     ) -> Sequence[Survey]:
         statement = (
             select(self.model)
+            .options(selectinload(self.model.tree).selectinload(Tree.sector))
             .options(selectinload(self.model.tree_photos))
             .options(selectinload(self.model.survey_defects))
             .offset(offset=skip)
@@ -49,6 +51,7 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
     async def get_all_by_tree_id(self, tree_id: int) -> Sequence[Survey]:
         statement = (
             select(self.model)
+            .options(selectinload(self.model.tree).selectinload(Tree.sector))
             .options(selectinload(self.model.tree_photos))
             .options(selectinload(self.model.survey_defects))
             .where(self.model.tree_id == tree_id)

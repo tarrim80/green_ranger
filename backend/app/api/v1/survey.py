@@ -11,6 +11,7 @@ from fastapi import (
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
+    PermissionDenniedError,
     PhotoCreationError,
     SurveyCreationError,
     SurveyRemovingError,
@@ -175,15 +176,20 @@ async def update_survey(
     survey_id: int,
     survey_in: SurveyUpdate,
     service: SurveyService = Depends(),
+    user: User = Depends(dependency=current_user),
 ) -> SurveyRead:
     try:
         survey_update_db = await service.update_survey(
-            obj_id=survey_id, obj_in=survey_in
+            obj_id=survey_id, obj_in=survey_in, user=user
         )
         return SurveyRead.model_validate(obj=survey_update_db)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except SurveyUpdatingError as e:
         raise HTTPException(
@@ -201,13 +207,19 @@ async def update_survey(
     ],
 )
 async def delete_survey(
-    survey_id: int, service: SurveyService = Depends()
+    survey_id: int,
+    service: SurveyService = Depends(),
+    user: User = Depends(current_user),
 ) -> None:
     try:
-        await service.delete_with_photos(survey_id=survey_id)
+        await service.delete_with_photos(survey_id=survey_id, user=user)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except SurveyRemovingError as e:
         raise HTTPException(
