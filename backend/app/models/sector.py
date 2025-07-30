@@ -34,6 +34,7 @@ class Sector(
     curator: Mapped["User"] = relationship(
         "User", back_populates="curated_sectors"
     )
+    # TODO: (Требует миграции) Добавить в индексы (index=True)
     team_id: Mapped[int | None] = mapped_column(
         ForeignKey("team.id"),
         comment="ID команды, назначенной на участок",

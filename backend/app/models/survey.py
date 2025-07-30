@@ -18,7 +18,7 @@ class Survey(IntIdPkMixin, Base):
 
     __verbose_name__ = "Обследование"
     __verbose_name_plural__ = "Обследования"
-
+    # TODO: (Требует миграции) Добавить в индексы (index=True)
     tree_id: Mapped[int] = mapped_column(
         ForeignKey("tree.id"),
         comment="ID растения",
@@ -62,14 +62,14 @@ class Survey(IntIdPkMixin, Base):
         "User",
         back_populates="created_surveys",
     )
-    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # TODO: (Требует миграции) Изменить на DateTime(timezone=True) и создать миграцию
     # для корректной работы с часовыми поясами.
     created_at: Mapped[DateTime] = mapped_column(
         DateTime,
         server_default=func.now(),
         comment="Дата и время проведения обследования",
     )
-    # TODO: Изменить на DateTime(timezone=True) и создать миграцию
+    # TODO: (Требует миграции) Изменить на DateTime(timezone=True) и создать миграцию
     # для корректной работы с часовыми поясами.
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime,

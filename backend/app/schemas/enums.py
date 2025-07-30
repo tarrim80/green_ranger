@@ -37,4 +37,4 @@ class DefectStatusEnum(StrEnum):
     RESOLVED = "Устранён"
     NO_ACTION_NEEDED = "Не требует действий"
     ON_MONITORING = "На наблюдении"
-    # TODO: Добавить "Не подтверждён"
+    # TODO: (Требует миграции) Добавить "Не подтверждён"

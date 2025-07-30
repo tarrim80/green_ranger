@@ -22,7 +22,7 @@ class SurveyDefect(
     __verbose_name__ = "Дефект"
     __verbose_name_plural__ = "Дефекты"
 
-    # TODO: Добавить в индексы (index=True)
+    # TODO: (Требует миграции) Добавить в индексы (index=True)
     survey_id: Mapped[int] = mapped_column(
         ForeignKey("survey.id"), comment="ID обследования"
     )
@@ -30,7 +30,7 @@ class SurveyDefect(
         "Survey",
         back_populates="survey_defects",
     )
-    # TODO: Добавить в индексы (index=True)
+    # TODO: (Требует миграции) Добавить в индексы (index=True)
     defect_type_id: Mapped[int] = mapped_column(
         ForeignKey("defect_type.id"),
         comment="ID вида дефекта из справочника",
