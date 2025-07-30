@@ -80,6 +80,30 @@ class IsSurveyOwnerOrCurator(BaseObjectPermission[Survey]):
         return False
 
 
+class IsTreeCuratorOrCorrectTeam(BaseObjectPermission[Tree]):
+    """
+    Проверяет права на изменение Растения.
+
+    Доступ разрешен администраторам и кураторам своего участка.
+    """
+
+    async def has_obj_permission(self, user: User, obj: Tree) -> bool:
+        """
+        Проверяет, что пользователь является куратором участка размещения
+        растения, или входит в команду закрепленную за участком.
+        """
+        if user.role == RoleEnum.ADMIN:
+            return True
+
+        if user.role == RoleEnum.CURATOR:
+            return obj.sector.curator_id == user.id
+
+        if user.role == RoleEnum.VOLUNTEER:
+            return user.team == obj.sector.team
+
+        return False
+
+
 def permission_dependency(permission: type[BasePermission]):
     """Фабрика зависимостей для проверки ролевых разрешений."""
 

@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.core.exceptions import (
     NotAllowedError,
     NotFoundError,
+    PermissionDenniedError,
     TreeCreationError,
     TreeUpdatingError,
 )
+from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.core.user import current_user
 from app.models import User
 from app.schemas import TreeCreate, TreeCreateWithAuthor, TreeRead, TreeUpdate
@@ -101,15 +102,20 @@ async def update_tree(
     tree_id: int,
     tree_in: TreeUpdate,
     service: TreeService = Depends(),
+    user: User = Depends(dependency=current_user),
 ) -> TreeRead:
     try:
         tree_update_db = await service.update_tree(
-            obj_id=tree_id, obj_in=tree_in
+            obj_id=tree_id, obj_in=tree_in, user=user
         )
         return TreeRead.model_validate(obj=tree_update_db)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except TreeUpdatingError as e:
         raise HTTPException(
