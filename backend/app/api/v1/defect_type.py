@@ -93,7 +93,7 @@ async def create_defect_type(
     path="/{defect_type_id}/images",
     response_model=list[PhotoRead],
     status_code=status.HTTP_201_CREATED,
-    summary="Добавление избражений к виду дефекта",
+    summary="Добавление изображений к виду дефекта",
     description="Загружает одно или несколько изображений \
         и привязывает их к существующему виду дефекта.",
     dependencies=[
