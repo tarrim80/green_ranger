@@ -102,6 +102,10 @@ class AuthorizedError(AppException):
     pass
 
 
+class PermissionDenniedError(AppException):
+    pass
+
+
 class ExceptionDetails:
     @staticmethod
     def get_not_found_detail(model_name: str, id: int) -> str:
@@ -134,6 +138,7 @@ class ExceptionDetails:
         "Не удалось получить идентификатор пользователя из токена"
     )
     INVALID_USERNAME_OR_PASSWORD = "Неверное имя пользователя или пароль"
+    NO_RIGHNT_FOR_ACTION = "Нет прав для этого действия"
     NOT_ALLOWED_ADD_OTHER_TEAM = "Невозможно добавить в команду пользователя, состоящего в другой команде. Сначала исключите из другой команды."
     NOT_ALLOWED_REMOVE_SECTOR_WITH_TREES = (
         "Невозможно удалить участок, на котором зарегистрированы растения"
