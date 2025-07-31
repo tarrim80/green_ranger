@@ -46,5 +46,6 @@ class UserUpdate(schemas.BaseUserUpdate):
 class UserShortRead(BaseModel):
     id: Annotated[int, USER_FIELDS_CONFIG["id"]]
     fullname: Annotated[str, USER_FIELDS_CONFIG["fullname"]]
+    role: Annotated[RoleEnum, USER_FIELDS_CONFIG["role"]]
 
     model_config = ConfigDict(from_attributes=True)
