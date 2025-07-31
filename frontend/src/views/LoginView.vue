@@ -3,12 +3,12 @@
   <v-container class="fill-height">
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="4">
-        <v-card class="elevation-12">
-          <v-toolbar color="primary" dark flat>
-            <v-toolbar-title>Вход в систему</v-toolbar-title>
-          </v-toolbar>
-          <v-card-text>
-            <v-form @submit.prevent="handleLogin">
+        <v-form @submit.prevent="handleLogin">
+          <v-card class="elevation-12">
+            <v-toolbar color="primary" dark flat>
+              <v-toolbar-title>Вход в систему</v-toolbar-title>
+            </v-toolbar>
+            <v-card-text>
               <v-text-field
                 v-model="email"
                 label="Email"
@@ -26,13 +26,13 @@
                 type="password"
                 required
               ></v-text-field>
-            </v-form>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="primary" @click="handleLogin">Войти</v-btn>
-          </v-card-actions>
-        </v-card>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="primary" type="submit">Войти</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-form>
       </v-col>
     </v-row>
   </v-container>
