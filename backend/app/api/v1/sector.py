@@ -55,7 +55,7 @@ async def get_sector(
     summary="Создание нового участка",
     description="Создает новый учетный участок в системе.",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsAdmin))
+        Depends(dependency=permission_dependency(permission=IsCurator))
     ],
 )
 async def create_sector(
