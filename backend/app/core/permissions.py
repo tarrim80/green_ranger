@@ -18,16 +18,16 @@ class BasePermission:
         return False
 
 
-class IsVolunteer(BasePermission):
-    """Разрешение для пользователей с ролью 'Волонтер' и выше."""
+class IsAdmin(BasePermission):
+    """Разрешение для пользователей с ролью 'Администратор'."""
 
     async def has_permission(self, user: User) -> bool:
-        """Проверяет наличие роли 'Волонтер' или более высокой."""
-        has_role = user.role == RoleEnum.VOLUNTEER
+        """Проверяет наличие роли 'Администратор'."""
+        has_role = user.role == RoleEnum.ADMIN
         return has_role or await super().has_permission(user)
 
 
-class IsCurator(IsVolunteer):
+class IsCurator(IsAdmin):
     """Разрешение для пользователей с ролью 'Куратор' и выше."""
 
     async def has_permission(self, user: User) -> bool:
@@ -36,12 +36,12 @@ class IsCurator(IsVolunteer):
         return has_role or await super().has_permission(user)
 
 
-class IsAdmin(IsCurator):
-    """Разрешение для пользователей с ролью 'Администратор'."""
+class IsVolunteer(IsCurator):
+    """Разрешение для пользователей с ролью 'Волонтер' и выше."""
 
     async def has_permission(self, user: User) -> bool:
-        """Проверяет наличие роли 'Администратор'."""
-        has_role = user.role == RoleEnum.ADMIN
+        """Проверяет наличие роли 'Волонтер' или более высокой."""
+        has_role = user.role == RoleEnum.VOLUNTEER
         return has_role or await super().has_permission(user)
 
 
