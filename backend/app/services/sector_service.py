@@ -44,8 +44,7 @@ class SectorService(DeleteObjMixin):
         return sector_db
 
     async def create_sector(self, sector_in: SectorCreate) -> Sector:
-        geometry_dict = sector_in.geometry.model_dump()
-        shapely_geom = shape(context=geometry_dict)
+        shapely_geom = shape(context=sector_in.geometry)
         wkt_element = WKTElement(
             data=shapely_geom.wkt, srid=SRID_MERCATOR_WGS84
         )
@@ -56,7 +55,9 @@ class SectorService(DeleteObjMixin):
                 new_sector = self.repo.model(**sector_data)
                 self.repo.session.add(instance=new_sector)
                 await self.repo.session.flush()
-                await self.repo.session.refresh(instance=new_sector)
+                await self.repo.session.refresh(
+                    instance=new_sector, attribute_names=["curator", "team"]
+                )
             return new_sector
         except IntegrityError as e:
             raise SectorCreationError(
