@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Annotated
 
-from geoalchemy2.elements import WKBElement
-from geojson_pydantic import Polygon
+from geoalchemy2.elements import WKBElement, WKTElement
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from shapely.geometry import mapping
 from shapely.wkb import loads as wkb_loads
+from shapely.wkt import loads as wkt_loads
 
 if TYPE_CHECKING:
     from app.schemas import TeamShortRead, UserShortRead
@@ -46,7 +46,7 @@ SECTOR_FIELDS_CONFIG = {
 class SectorBase(BaseModel):
     name: Annotated[str, SECTOR_FIELDS_CONFIG["name"]]
     color: Annotated[str, SECTOR_FIELDS_CONFIG["color"]]
-    geometry: Annotated[Polygon, SECTOR_FIELDS_CONFIG["geometry"]]
+    geometry: Annotated[dict, SECTOR_FIELDS_CONFIG["geometry"]]
 
 
 class SectorCreate(SectorBase):
@@ -57,9 +57,7 @@ class SectorCreate(SectorBase):
 class SectorUpdate(BaseModel):
     name: Annotated[str | None, SECTOR_FIELDS_CONFIG["name"]] = None
     color: Annotated[str | None, SECTOR_FIELDS_CONFIG["color"]] = None
-    geometry: Annotated[Polygon | None, SECTOR_FIELDS_CONFIG["geometry"]] = (
-        None
-    )
+    geometry: Annotated[dict | None, SECTOR_FIELDS_CONFIG["geometry"]] = None
     curator_id: Annotated[int | None, SECTOR_FIELDS_CONFIG["curator_id"]] = (
         None
     )
@@ -72,13 +70,16 @@ class SectorRead(SectorBase):
     team: Annotated["TeamShortRead | None", SECTOR_FIELDS_CONFIG["team"]] = (
         None
     )
+    geometry: Annotated[dict, SECTOR_FIELDS_CONFIG["geometry"]]
 
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator("geometry", mode="before")
     @classmethod
-    def parse_geometry(cls, element: WKBElement | dict) -> dict:
-        """Преобразует WKBElement из БД в GeoJSON-совместимый словарь."""
+    def parse_geometry(cls, element: WKTElement | WKBElement | dict) -> dict:
+        """Преобразует WKTElement или WKBElement из БД в GeoJSON-совместимый словарь."""
+        if isinstance(element, WKTElement):
+            return mapping(wkt_loads(element.data))
         if isinstance(element, WKBElement):
             return mapping(wkb_loads(element.data))
         return element
