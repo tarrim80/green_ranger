@@ -31,12 +31,16 @@ TEAM_FIELDS_CONFIG = {
 
 
 class TeamBase(BaseModel):
+    """Базовая схема для команды."""
+
     name: Annotated[str | None, TEAM_FIELDS_CONFIG["name"]] = None
     leader_id: Annotated[int, TEAM_FIELDS_CONFIG["leader_id"]]
     member_ids: Annotated[list[int], TEAM_FIELDS_CONFIG["member_ids"]]
 
 
 class TeamCreate(TeamBase):
+    """Схема для создания команды с валидацией."""
+
     @model_validator(mode="after")
     def check_leader_in_members(self) -> "TeamCreate":
         validate_leader_is_member(
@@ -48,11 +52,15 @@ class TeamCreate(TeamBase):
 
 
 class TeamUpdate(BaseModel):
+    """Схема для обновления команды."""
+
     name: Annotated[str | None, TEAM_FIELDS_CONFIG["name"]] = None
     leader_id: Annotated[int | None, TEAM_FIELDS_CONFIG["leader_id"]] = None
 
 
 class TeamShortRead(BaseModel):
+    """Схема для краткого представления команды."""
+
     id: Annotated[int, TEAM_FIELDS_CONFIG["id"]]
     name: Annotated[str, TEAM_FIELDS_CONFIG["name"]]
     leader: Annotated[UserShortRead, TEAM_FIELDS_CONFIG["leader"]]
@@ -61,4 +69,6 @@ class TeamShortRead(BaseModel):
 
 
 class TeamRead(TeamShortRead):
+    """Схема для чтения команды с участниками."""
+
     members: Annotated[list[UserShortRead], TEAM_FIELDS_CONFIG["members"]]

@@ -10,6 +10,8 @@ from app.schemas import UserCreate, UserUpdate
 
 
 class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
+    """Репозиторий для работы с моделью пользователей."""
+
     model = User
 
     def __init__(

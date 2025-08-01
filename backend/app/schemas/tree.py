@@ -54,6 +54,8 @@ TREE_FIELDS_CONFIG = {
 
 
 class TreeBase(BaseModel):
+    """Базовая схема для растения (дерева)."""
+
     planting: Annotated[str, TREE_FIELDS_CONFIG["planting"]]
     species: Annotated[str, TREE_FIELDS_CONFIG["species"]]
     description: Annotated[str, TREE_FIELDS_CONFIG["description"]]
@@ -69,14 +71,20 @@ class TreeBase(BaseModel):
 
 
 class TreeCreate(TreeBase):
+    """Схема для создания растения."""
+
     sector_id: Annotated[int, TREE_FIELDS_CONFIG["sector_id"]]
 
 
 class TreeCreateWithAuthor(TreeCreate):
+    """Схема для создания растения с указанием автора."""
+
     author_id: Annotated[int, TREE_FIELDS_CONFIG["author_id"]]
 
 
 class TreeUpdate(BaseModel):
+    """Схема для обновления растения."""
+
     planting: Annotated[str | None, TREE_FIELDS_CONFIG["planting"]] = None
     species: Annotated[str | None, TREE_FIELDS_CONFIG["species"]] = None
     description: Annotated[str | None, TREE_FIELDS_CONFIG["description"]] = (
@@ -95,6 +103,8 @@ class TreeUpdate(BaseModel):
 
 
 class TreeRead(TreeBase):
+    """Схема для чтения растения со связанными сущностями."""
+
     id: Annotated[int, TREE_FIELDS_CONFIG["id"]]
     sector: Annotated["SectorShortRead", TREE_FIELDS_CONFIG["sector"]]
     author: Annotated["UserShortRead", TREE_FIELDS_CONFIG["author"]]
@@ -105,6 +115,8 @@ class TreeRead(TreeBase):
 
 
 class TreeShortRead(BaseModel):
+    """Схема для краткого представления растения."""
+
     id: Annotated[int, TREE_FIELDS_CONFIG["id"]]
     sector: Annotated["SectorShortRead", TREE_FIELDS_CONFIG["sector"]]
     condition: Annotated["TreeConditionEnum", TREE_FIELDS_CONFIG["condition"]]

@@ -11,10 +11,12 @@ TCreate = TypeVar("TCreate", bound=BaseModel)
 
 
 class CreateObjMixin(Generic[TRepository, TModel, TCreate]):
+    """Миксин для создания объекта в базе данных."""
 
     repo: TRepository
 
     async def create_obj(self, obj_in: TCreate) -> TModel:
+        """Выполняет создание объекта в рамках транзакции."""
         try:
             async with atomic_transaction(session=self.repo.session):
                 obj = await self.repo.create(obj_in=obj_in)

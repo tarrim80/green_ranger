@@ -15,6 +15,8 @@ from app.schemas import DefectTypeCreate, DefectTypeUpdate
 class DefectTypeRepository(
     BaseRepository[DefectType, DefectTypeCreate, DefectTypeUpdate]
 ):
+    """Репозиторий для работы с моделью вида дефектов."""
+
     model = DefectType
 
     def __init__(
@@ -26,6 +28,7 @@ class DefectTypeRepository(
         super().__init__(session=session)
 
     async def get(self, id: int) -> DefectType | None:
+        """Получает вид дефекта по ID с загрузкой связанных изображений."""
         statement = (
             select(self.model)
             .options(selectinload(self.model.images))
@@ -37,6 +40,7 @@ class DefectTypeRepository(
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[DefectType]:
+        """Получает список видов дефектов с загрузкой изображений."""
         statement = (
             select(self.model)
             .options(selectinload(self.model.images))

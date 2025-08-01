@@ -132,7 +132,7 @@ class IsTreeCuratorOrCorrectTeam(BaseObjectPermission[Tree]):
 
 
 def permission_dependency(permission: type[BasePermission]):
-    """Фабрика зависимостей для проверки ролевых разрешений."""
+    """Создает зависимость FastAPI для проверки ролевых разрешений."""
 
     async def check_permission(user: User = Depends(current_user)):
         """Выполняет проверку прав."""

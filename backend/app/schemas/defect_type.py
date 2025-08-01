@@ -22,6 +22,8 @@ DEFECT_TYPE_FIELDS_CONFIG = {
 
 
 class DefectTypeBase(BaseModel):
+    """Базовая схема для вида дефекта."""
+
     name: Annotated[str, DEFECT_TYPE_FIELDS_CONFIG["name"]]
     description: Annotated[
         str | None, DEFECT_TYPE_FIELDS_CONFIG["description"]
@@ -29,10 +31,14 @@ class DefectTypeBase(BaseModel):
 
 
 class DefectTypeCreate(DefectTypeBase):
+    """Схема для создания вида дефекта."""
+
     pass
 
 
 class DefectTypeUpdate(BaseModel):
+    """Схема для обновления вида дефекта."""
+
     name: Annotated[str | None, DEFECT_TYPE_FIELDS_CONFIG["name"]] = None
     description: Annotated[
         str | None, DEFECT_TYPE_FIELDS_CONFIG["description"]
@@ -40,6 +46,8 @@ class DefectTypeUpdate(BaseModel):
 
 
 class DefectTypeShortRead(BaseModel):
+    """Схема для краткого представления вида дефекта."""
+
     id: Annotated[int, DEFECT_TYPE_FIELDS_CONFIG["id"]]
     name: Annotated[str, DEFECT_TYPE_FIELDS_CONFIG["name"]]
 
@@ -47,6 +55,8 @@ class DefectTypeShortRead(BaseModel):
 
 
 class DefectTypeRead(DefectTypeBase):
+    """Схема для чтения вида дефекта со связанными изображениями."""
+
     id: Annotated[int, DEFECT_TYPE_FIELDS_CONFIG["id"]]
     images: Annotated[list[PhotoRead], DEFECT_TYPE_FIELDS_CONFIG["images"]]
 

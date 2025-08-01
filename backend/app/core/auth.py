@@ -19,8 +19,10 @@ refresh_jwt_strategy = JWTStrategy(
 
 
 async def create_access_token(user: User) -> str:
+    """Создает токен доступа для пользователя."""
     return await jwt_strategy.write_token(user)
 
 
 async def create_refresh_token(user: User) -> str:
+    """Создает токен обновления для пользователя."""
     return await refresh_jwt_strategy.write_token(user)

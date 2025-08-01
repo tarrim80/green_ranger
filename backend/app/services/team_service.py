@@ -19,6 +19,8 @@ from app.services.mixins import DeleteObjMixin
 
 
 class TeamService(DeleteObjMixin):
+    """Сервисный слой для управления командами волонтёров."""
+
     def __init__(
         self,
         repo: TeamRepository = Depends(),
@@ -28,10 +30,12 @@ class TeamService(DeleteObjMixin):
         self.user_repo = user_repo
 
     async def get_all_teams(self) -> list[Team]:
+        """Получает список всех команд."""
         teams_db = await self.repo.get_multi()
         return list(teams_db)
 
     async def get_team(self, obj_id: int) -> Team:
+        """Получает команду по ее идентификатору."""
         team_db = await self.repo.get(id=obj_id)
         if not team_db:
             raise NotFoundError(
@@ -43,6 +47,7 @@ class TeamService(DeleteObjMixin):
         return team_db
 
     async def create_team(self, team_in: TeamCreate) -> Team:
+        """Создает новую команду и привязывает к ней участников."""
         try:
             leader_id = team_in.leader_id
             member_ids = team_in.member_ids
@@ -81,6 +86,7 @@ class TeamService(DeleteObjMixin):
             )
 
     async def update_team(self, team_id: int, team_in: TeamUpdate) -> Team:
+        """Обновляет данные существующей команды."""
         team_updated: Team
         try:
             async with atomic_transaction(session=self.repo.session):
@@ -127,6 +133,7 @@ class TeamService(DeleteObjMixin):
             )
 
     async def delete_team(self, team_id: int) -> None:
+        """Удаляет команду с проверкой на наличие участников."""
         try:
             team = await self.repo.get(id=team_id)
             if not team:
@@ -151,6 +158,7 @@ class TeamService(DeleteObjMixin):
             ) from e
 
     async def add_members(self, team_id: int, member_ids: list[int]) -> Team:
+        """Добавляет новых участников в команду."""
         try:
             member_ids = list(set(member_ids))
             team_db = await self.repo.get(id=team_id)
@@ -190,6 +198,7 @@ class TeamService(DeleteObjMixin):
     async def remove_members(
         self, team_id: int, member_ids: list[int]
     ) -> Team:
+        """Исключает участников из команды."""
         try:
             member_ids = list(set(member_ids))
             team_db = await self.repo.get(id=team_id)

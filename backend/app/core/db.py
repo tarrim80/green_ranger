@@ -11,5 +11,6 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """Провайдер асинхронной сессии для зависимостей FastAPI."""
     async with AsyncSessionLocal() as async_session:
         yield async_session

@@ -27,6 +27,10 @@ app.include_router(main_router)
 
 
 def custom_openapi():
+    """
+    Кастомизирует схему OpenAPI для автоматического отображения
+    защиты эндпоинтов.
+    """
     if app.openapi_schema:
         return app.openapi_schema
 

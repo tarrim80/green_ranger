@@ -20,6 +20,8 @@ from app.utils.photo_uploader import save_uploaded_images
 
 
 class PhotoService(UpdateObjMixin):
+    """Сервисный слой для управления фотографиями."""
+
     def __init__(self, repo: PhotoRepository = Depends()) -> None:
         self.repo = repo
 
@@ -30,6 +32,7 @@ class PhotoService(UpdateObjMixin):
         survey_id: int | None = None,
         survey_defect_id: int | None = None,
     ) -> list[Photo]:
+        """Загружает, обрабатывает и привязывает фотографии к сущностям."""
         saved_file_paths = []
         photos_to_create = []
         try:
@@ -58,6 +61,7 @@ class PhotoService(UpdateObjMixin):
             )
 
     async def update_photo(self, obj_id: int, obj_in: PhotoUpdate) -> Photo:
+        """Обновляет связи существующей фотографии."""
         try:
             photo_db = await self.repo.get(id=obj_id)
             if not photo_db:
@@ -77,6 +81,7 @@ class PhotoService(UpdateObjMixin):
             ) from e
 
     async def _stage_deletion(self, photo_id: int) -> Path:
+        """Подготавливает файл фотографии к физическому удалению с диска."""
         photo_db = await self.repo.get(id=photo_id)
         if not photo_db:
             raise NotFoundError(
@@ -89,6 +94,7 @@ class PhotoService(UpdateObjMixin):
         return file_to_delete
 
     async def delete_photo(self, photo_id: int) -> None:
+        """Удаляет фотографию из базы данных и с диска."""
         try:
             async with atomic_transaction(session=self.repo.session):
                 path_to_delete = await self._stage_deletion(photo_id=photo_id)

@@ -11,7 +11,7 @@ PHOTO_EXT = ".jpg"
 
 
 def generate_unique_filename() -> str:
-    """Генерирует уникальное имя файла, сохраняя расширение."""
+    """Генерирует уникальное имя для файла изображения."""
     local_tz = zoneinfo.ZoneInfo(settings.timezone)
     local_now = datetime.datetime.now(tz=local_tz)
     date_part = local_now.strftime(format=FORMAT)
@@ -21,7 +21,7 @@ def generate_unique_filename() -> str:
 
 
 def get_photo_path(unique_filename: str) -> tuple[Path, str]:
-    """Возвращает абсолютный путь для сохранения и относительный для БД."""
+    """Формирует абсолютный и относительный пути для сохранения файла."""
     absolute_path = settings.media_root / TARGET_DIR
     absolute_path.mkdir(parents=True, exist_ok=True)
     relative_path = f"{TARGET_DIR}/{unique_filename}"

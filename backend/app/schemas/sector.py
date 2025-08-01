@@ -44,17 +44,23 @@ SECTOR_FIELDS_CONFIG = {
 
 
 class SectorBase(BaseModel):
+    """Базовая схема для учетного участка."""
+
     name: Annotated[str, SECTOR_FIELDS_CONFIG["name"]]
     color: Annotated[str, SECTOR_FIELDS_CONFIG["color"]]
     geometry: Annotated[dict, SECTOR_FIELDS_CONFIG["geometry"]]
 
 
 class SectorCreate(SectorBase):
+    """Схема для создания учетного участка."""
+
     curator_id: Annotated[int, SECTOR_FIELDS_CONFIG["curator_id"]]
     team_id: Annotated[int | None, SECTOR_FIELDS_CONFIG["team_id"]]
 
 
 class SectorUpdate(BaseModel):
+    """Схема для обновления учетного участка."""
+
     name: Annotated[str | None, SECTOR_FIELDS_CONFIG["name"]] = None
     color: Annotated[str | None, SECTOR_FIELDS_CONFIG["color"]] = None
     geometry: Annotated[dict | None, SECTOR_FIELDS_CONFIG["geometry"]] = None
@@ -65,6 +71,8 @@ class SectorUpdate(BaseModel):
 
 
 class SectorRead(SectorBase):
+    """Схема для чтения учетного участка со связанными сущностями."""
+
     id: Annotated[int, SECTOR_FIELDS_CONFIG["id"]]
     curator: Annotated["UserShortRead", SECTOR_FIELDS_CONFIG["curator"]]
     team: Annotated["TeamShortRead | None", SECTOR_FIELDS_CONFIG["team"]] = (
@@ -86,6 +94,8 @@ class SectorRead(SectorBase):
 
 
 class SectorShortRead(BaseModel):
+    """Схема для краткого представления учетного участка."""
+
     id: Annotated[int, SECTOR_FIELDS_CONFIG["id"]]
     name: Annotated[str, SECTOR_FIELDS_CONFIG["name"]]
     color: Annotated[str, SECTOR_FIELDS_CONFIG["color"]]

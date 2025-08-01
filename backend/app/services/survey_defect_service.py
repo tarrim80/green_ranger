@@ -22,6 +22,8 @@ from app.utils.photo_uploader import save_uploaded_images
 
 
 class SurveyDefectService(UpdateObjMixin):
+    """Сервисный слой для управления обнаруженными дефектами."""
+
     def __init__(
         self,
         repo: SurveyDefectRepository = Depends(),
@@ -31,10 +33,12 @@ class SurveyDefectService(UpdateObjMixin):
         self.photo_service = photo_service
 
     async def get_all_defects(self) -> list[SurveyDefect]:
+        """Получает список всех дефектов."""
         defects_db = await self.repo.get_multi()
         return list(defects_db)
 
     async def get_defect(self, obj_id: int) -> SurveyDefect:
+        """Получает дефект по его идентификатору."""
         defect_db = await self.repo.get(id=obj_id)
         if not defect_db:
             raise NotFoundError(
@@ -48,6 +52,7 @@ class SurveyDefectService(UpdateObjMixin):
     async def get_defects_by_survey_id(
         self, survey_id: int
     ) -> list[SurveyDefect]:
+        """Получает список всех дефектов для конкретного обследования."""
         defects_db = await self.repo.get_all_by_survey_id(survey_id=survey_id)
         return list(defects_db)
 
@@ -56,6 +61,7 @@ class SurveyDefectService(UpdateObjMixin):
         survey_defect_in: SurveyDefectCreate,
         files: list[UploadFile],
     ) -> SurveyDefect:
+        """Создает новый дефект с привязкой фотографий."""
         saved_file_paths = []
         try:
             photos_data, saved_file_paths = await save_uploaded_images(
@@ -87,6 +93,7 @@ class SurveyDefectService(UpdateObjMixin):
     async def update_defect(
         self, obj_id: int, obj_in: SurveyDefectUpdate, user: User
     ) -> SurveyDefect:
+        """Обновляет данные существующего дефекта с проверкой прав доступа."""
         try:
             defect_db = await self.repo.get(id=obj_id)
             if not defect_db:
@@ -117,6 +124,7 @@ class SurveyDefectService(UpdateObjMixin):
             ) from e
 
     async def _stage_deletion(self, defect_db: SurveyDefect) -> list[Path]:
+        """Подготавливает дефект и связанные фотографии к удалению."""
         photos_to_delete = []
         for photo in defect_db.photos:
             photo_path = await self.photo_service._stage_deletion(
@@ -127,6 +135,9 @@ class SurveyDefectService(UpdateObjMixin):
         return photos_to_delete
 
     async def delete_with_photos(self, defect_id: int, user: User) -> None:
+        """
+        Удаляет дефект, связанные фотографии и записи в БД с проверкой прав.
+        """
         try:
             defect_db = await self.repo.get(id=defect_id)
             if not defect_db:

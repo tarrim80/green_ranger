@@ -68,6 +68,8 @@ SURVEY_FIELDS_CONFIG = {
 
 
 class SurveyBase(BaseModel):
+    """Базовая схема для обследования."""
+
     age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]] = None
     height: Annotated[float | None, SURVEY_FIELDS_CONFIG["height"]] = None
     diameter: Annotated[float | None, SURVEY_FIELDS_CONFIG["diameter"]] = None
@@ -84,6 +86,8 @@ class SurveyBase(BaseModel):
 
 
 class SurveyCreate(SurveyBase):
+    """Схема для создания обследования."""
+
     tree_id: Annotated[int, SURVEY_FIELDS_CONFIG["tree_id"]]
     author_id: Annotated[int, SURVEY_FIELDS_CONFIG["author_id"]]
     survey_status: Annotated[
@@ -92,6 +96,8 @@ class SurveyCreate(SurveyBase):
 
 
 class SurveyUpdate(BaseModel):
+    """Схема для обновления обследования."""
+
     # TODO: Подумать -- нужно ли давать возможность изменять tree_id
     tree_id: Annotated[int | None, SURVEY_FIELDS_CONFIG["tree_id"]] = None
     age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]] = None
@@ -113,6 +119,8 @@ class SurveyUpdate(BaseModel):
 
 
 class SurveyShortRead(SurveyBase):
+    """Схема для краткого представления обследования."""
+
     id: Annotated[int, SURVEY_FIELDS_CONFIG["id"]]
     tree_id: Annotated[int, SURVEY_FIELDS_CONFIG["tree_id"]]
     survey_status: Annotated[
@@ -124,6 +132,8 @@ class SurveyShortRead(SurveyBase):
 
 
 class SurveyRead(SurveyShortRead):
+    """Схема для чтения обследования со связанными сущностями."""
+
     created_at: Annotated[datetime, SURVEY_FIELDS_CONFIG["created_at"]]
     updated_at: Annotated[datetime, SURVEY_FIELDS_CONFIG["updated_at"]]
     tree_photos: Annotated[

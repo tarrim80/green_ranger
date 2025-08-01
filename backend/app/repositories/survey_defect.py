@@ -15,6 +15,11 @@ from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
 class SurveyDefectRepository(
     BaseRepository[SurveyDefect, SurveyDefectCreate, SurveyDefectUpdate]
 ):
+    """
+    Репозиторий для работы с моделью обнаруженных дефектов
+    при обследовании.
+    """
+
     model = SurveyDefect
 
     def __init__(
@@ -28,6 +33,7 @@ class SurveyDefectRepository(
     async def get_all_by_survey_id(
         self, survey_id: int
     ) -> Sequence[SurveyDefect]:
+        """Получает все дефекты для конкретного обследования."""
         statement = (
             select(self.model)
             .options(
@@ -41,6 +47,7 @@ class SurveyDefectRepository(
         return defects_db.scalars().all()
 
     async def get(self, id: int) -> SurveyDefect | None:
+        """Получает дефект по ID с загрузкой связанных сущностей."""
         statement = (
             select(self.model)
             .options(
@@ -57,6 +64,7 @@ class SurveyDefectRepository(
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[SurveyDefect]:
+        """Получает список дефектов с загрузкой связанных сущностей."""
         statement = (
             select(self.model)
             .options(

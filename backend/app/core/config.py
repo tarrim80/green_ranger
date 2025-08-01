@@ -7,6 +7,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
+    """Конфигурационные настройки приложения."""
+
     app_title: str = "Зелёный рейнджер"
     postgres_db: str
     postgres_user: str
@@ -37,16 +39,19 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def access_token_lifetime_seconds(self) -> int:
+        """Вычисляет время жизни токена доступа в секундах."""
         return self.access_token_lifetime_hours * 60 * 60
 
     @computed_field
     @property
     def refresh_token_lifetime_seconds(self) -> int:
+        """Вычисляет время жизни токена обновления в секундах."""
         return self.refresh_token_lifetime_days * 24 * 60 * 60
 
     @computed_field
     @property
     def database_url(self) -> str:
+        """Формирует URL для подключения к базе данных."""
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -55,6 +60,7 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def media_root(self) -> Path:
+        """Определяет корневую директорию для медиафайлов."""
         return BASE_DIR / "media"
 
 

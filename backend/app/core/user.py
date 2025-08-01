@@ -22,6 +22,7 @@ from app.schemas import UserCreate
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+    """Провайдер репозитория пользователей для зависимостей FastAPI."""
     yield SQLAlchemyUserDatabase(session, User)
 
 
@@ -29,6 +30,7 @@ bearer_transport = BearerTransport(tokenUrl="/api/v1/auth/jwt/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
+    """Возвращает сконфигурированную JWT-стратегию."""
     return jwt_strategy
 
 
@@ -40,6 +42,8 @@ auth_backend = AuthenticationBackend(
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
+    """Менеджер пользователей, расширяющий функциональность FastAPI-Users."""
+
     def __init__(self, user_db, session: AsyncSession):
         super().__init__(user_db=user_db)
         self.session = session
@@ -53,6 +57,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         safe: bool = False,
         request: Request | None = None,
     ) -> User:
+        """Создает нового пользователя с дополнительной логикой."""
         if not isinstance(user_create, UserCreate):
             return await super().create(user_create, safe, request)
 
@@ -80,6 +85,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         password: str,
         user: schemas.BaseUserCreate | User,
     ) -> None:
+        """Проверяет пароль на соответствие внутренним правилам."""
         if len(password) < 3:
             raise exceptions.InvalidPasswordException(
                 reason="Password should be at least 3 characters"
@@ -92,6 +98,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def on_after_register(
         self, user: User, request: Request | None = None
     ):
+        """Выполняет действия после успешной регистрации пользователя."""
         # TODO: Logging
         print(f"Пользователь {user.email} зарегистрирован.")
         await self.session.refresh(user, ["role"])
@@ -101,6 +108,7 @@ async def get_user_manager(
     user_db=Depends(get_user_db),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """Провайдер менеджера пользователей для зависимостей FastAPI."""
     yield UserManager(user_db=user_db, session=session)
 
 

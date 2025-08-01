@@ -16,14 +16,18 @@ from app.services.mixins import CreateObjMixin, UpdateObjMixin
 
 
 class TreeService(CreateObjMixin, UpdateObjMixin):
+    """Сервисный слой для управления растениями (деревьями)."""
+
     def __init__(self, repo: TreeRepository = Depends()) -> None:
         self.repo = repo
 
     async def get_all_trees(self) -> list[Tree]:
+        """Получает список всех растений."""
         trees_db = await self.repo.get_multi()
         return list(trees_db)
 
     async def get_tree(self, obj_id: int) -> Tree:
+        """Получает растение по его идентификатору."""
         tree_db = await self.repo.get(id=obj_id)
         if not tree_db:
             raise NotFoundError(
@@ -35,6 +39,7 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
         return tree_db
 
     async def get_trees_by_sector_id(self, sector_id: int) -> list[Tree]:
+        """Получает все растения для конкретного учетного участка."""
         trees_db = await self.repo.get_all_by_sector_id(sector_id=sector_id)
         return list(trees_db)
 
@@ -43,6 +48,7 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
     #       (команда волонтеров или куратор).
 
     async def create_tree(self, obj_in: TreeCreateWithAuthor) -> Tree:
+        """Создает новое растение."""
         try:
             tree = await self.create_obj(obj_in=obj_in)
             return tree
@@ -54,6 +60,7 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
     async def update_tree(
         self, obj_id: int, obj_in: TreeUpdate, user: User
     ) -> Tree:
+        """Обновляет данные существующего растения с проверкой прав доступа."""
         try:
             tree_db = await self.repo.get(id=obj_id)
             if not tree_db:
@@ -82,4 +89,5 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
             ) from e
 
     async def delete_tree(self, tree_id: int) -> None:
+        """Запрещает прямое удаление растения."""
         raise NotAllowedError(ExceptionDetails.NOT_ALLOWED_REMOVE_TREES)

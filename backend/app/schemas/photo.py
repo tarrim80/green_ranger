@@ -40,6 +40,8 @@ PHOTO_FIELDS_CONFIG = {
 
 
 class PhotoBase(BaseModel):
+    """Базовая схема для фотографии."""
+
     file_path: Annotated[str, *PHOTO_FIELDS_CONFIG["file_path"]]
     defect_type_id: Annotated[
         int | None, *PHOTO_FIELDS_CONFIG["defect_type_id"]
@@ -51,6 +53,8 @@ class PhotoBase(BaseModel):
 
 
 class PhotoCreate(PhotoBase):
+    """Схема для создания фотографии с валидацией связей."""
+
     @model_validator(mode="after")
     def check_links(self) -> "PhotoCreate":
         validate_photo_links(self.__dict__)
@@ -58,10 +62,14 @@ class PhotoCreate(PhotoBase):
 
 
 class PhotoUpdate(PhotoBase):
+    """Схема для обновления фотографии."""
+
     file_path: Annotated[str, *PHOTO_FIELDS_CONFIG["file_path"]] | None = None  # type: ignore
 
 
 class PhotoRead(PhotoBase):
+    """Схема для чтения фотографии."""
+
     id: Annotated[int, *PHOTO_FIELDS_CONFIG["id"]]
     uploaded_at: Annotated[datetime, *PHOTO_FIELDS_CONFIG["uploaded_at"]]
 

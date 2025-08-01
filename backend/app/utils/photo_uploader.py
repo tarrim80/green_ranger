@@ -11,9 +11,9 @@ from app.utils.photo_filename import generate_unique_filename, get_photo_path
 async def save_uploaded_images(
     files: list[UploadFile],
 ) -> tuple[list[dict], list[str]]:
+    """Сохраняет загруженные файлы изображений на сервер после их обработки."""
     photos_data = []
     saved_file_paths = []
-
     try:
         for file in files:
             if not file.filename:
@@ -34,9 +34,7 @@ async def save_uploaded_images(
                 )
             saved_file_paths.append(full_path)
             photos_data.append({"file_path": relative_path})
-
         return photos_data, saved_file_paths
-
     except FileProcessingError as e:
         for filename in saved_file_paths:
             os.remove(filename)

@@ -13,6 +13,8 @@ from app.schemas import TeamCreate, TeamUpdate
 
 
 class TeamRepository(BaseRepository[Team, TeamCreate, TeamUpdate]):
+    """Репозиторий для работы с моделью команд."""
+
     model = Team
 
     def __init__(
@@ -24,6 +26,7 @@ class TeamRepository(BaseRepository[Team, TeamCreate, TeamUpdate]):
         super().__init__(session=session)
 
     async def get(self, id: int) -> Team | None:
+        """Получает команду по ID с загрузкой участников."""
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.members))
@@ -34,6 +37,7 @@ class TeamRepository(BaseRepository[Team, TeamCreate, TeamUpdate]):
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[Team]:
+        """Получает список команд с загрузкой участников."""
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.members))

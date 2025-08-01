@@ -1,112 +1,170 @@
 class AppException(Exception):
+    """Базовое исключение для приложения."""
+
     pass
 
 
 class FileProcessingError(AppException):
+    """Исключение, возникающее при ошибке обработки файла."""
+
     pass
 
 
 class DefectTypeCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Вида дефекта."""
+
     pass
 
 
 class DefectTypeUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Вида дефекта."""
+
     pass
 
 
 class DefectTypeRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Вида дефекта."""
+
     pass
 
 
 class SurveyDefectCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Дефекта."""
+
     pass
 
 
 class SurveyDefectUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Дефекта."""
+
     pass
 
 
 class SurveyDefectRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Дефекта."""
+
     pass
 
 
 class SurveyCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Обследования."""
+
     pass
 
 
 class SurveyUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Обследования."""
+
     pass
 
 
 class SurveyRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Обследования."""
+
     pass
 
 
 class SectorCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Учётного участка."""
+
     pass
 
 
 class SectorUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Учётного участка."""
+
     pass
 
 
 class SectorRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Учётного участка."""
+
     pass
 
 
 class TeamCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Команды волонтёров."""
+
     pass
 
 
 class TeamUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Команды волонтёров."""
+
     pass
 
 
 class TeamRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Команды волонтёров."""
+
     pass
 
 
 class TreeCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Растения (Дерева)."""
+
     pass
 
 
 class TreeUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Растения (Дерева)."""
+
     pass
 
 
 class TreeRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Растения (Дерева)."""
+
     pass
 
 
 class PhotoCreationError(AppException):
+    """Исключение, возникающее при ошибке создания Фотографии/Изображения."""
+
     pass
 
 
 class PhotoUpdatingError(AppException):
+    """Исключение, возникающее при ошибке обновления Фотографии/Изображения."""
+
     pass
 
 
 class PhotoRemovingError(AppException):
+    """Исключение, возникающее при ошибке удаления Фотографии/Изображения."""
+
     pass
 
 
 class NotFoundError(AppException):
+    """Исключение для случаев, когда объект не найден в БД."""
+
     pass
 
 
 class NotAllowedError(AppException):
+    """
+    Исключение для запрещенных операций (например, удаление связанных данных).
+    """
+
     pass
 
 
 class AuthorizedError(AppException):
+    """Исключение, связанное с ошибками авторизации."""
+
     pass
 
 
 class PermissionDenniedError(AppException):
+    """Исключение, возникающее при нехватке прав доступа к объекту."""
+
     pass
 
 
 class ExceptionDetails:
+    """Хранилище текстовых сообщений для исключений."""
+
     @staticmethod
     def get_not_found_detail(model_name: str, id: int) -> str:
         return f"Не найден объект: {model_name} с идентификатором {id}"

@@ -9,10 +9,12 @@ TModel = TypeVar("TModel")
 
 
 class DeleteObjMixin(Generic[TRepository, TModel]):
+    """Миксин для удаления объекта из базы данных."""
 
     repo: TRepository
 
     async def delete_obj(self, obj_id: int) -> TModel:
+        """Выполняет удаление объекта в рамках транзакции."""
         try:
             async with atomic_transaction(session=self.repo.session):
                 obj = await self.repo.remove(id=obj_id)

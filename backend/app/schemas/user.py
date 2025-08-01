@@ -22,6 +22,8 @@ USER_FIELDS_CONFIG = {
 
 
 class UserRead(schemas.BaseUser[int]):
+    """Схема для чтения данных пользователя."""
+
     telegram_id: Annotated[int, USER_FIELDS_CONFIG["telegram_id"]]
     firstname: Annotated[str | None, USER_FIELDS_CONFIG["firstname"]]
     lastname: Annotated[str | None, USER_FIELDS_CONFIG["lastname"]]
@@ -30,6 +32,8 @@ class UserRead(schemas.BaseUser[int]):
 
 
 class UserCreate(schemas.BaseUserCreate):
+    """Схема для создания пользователя."""
+
     telegram_id: Annotated[int, USER_FIELDS_CONFIG["telegram_id"]]
     firstname: Annotated[str | None, USER_FIELDS_CONFIG["firstname"]] = None
     lastname: Annotated[str | None, USER_FIELDS_CONFIG["lastname"]] = None
@@ -37,6 +41,8 @@ class UserCreate(schemas.BaseUserCreate):
 
 
 class UserUpdate(schemas.BaseUserUpdate):
+    """Схема для обновления данных пользователя."""
+
     firstname: Annotated[str | None, USER_FIELDS_CONFIG["firstname"]] = None
     lastname: Annotated[str | None, USER_FIELDS_CONFIG["lastname"]] = None
     role: Annotated[RoleEnum | None, USER_FIELDS_CONFIG["role"]] = None
@@ -44,6 +50,8 @@ class UserUpdate(schemas.BaseUserUpdate):
 
 
 class UserShortRead(BaseModel):
+    """Схема для краткого представления пользователя."""
+
     id: Annotated[int, USER_FIELDS_CONFIG["id"]]
     fullname: Annotated[str, USER_FIELDS_CONFIG["fullname"]]
     role: Annotated[RoleEnum, USER_FIELDS_CONFIG["role"]]

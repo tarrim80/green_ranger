@@ -11,6 +11,8 @@ from app.schemas import PhotoCreate, PhotoUpdate
 
 
 class PhotoRepository(BaseRepository[Photo, PhotoCreate, PhotoUpdate]):
+    """Репозиторий для работы с моделью фотографий."""
+
     model = Photo
 
     def __init__(
@@ -22,6 +24,7 @@ class PhotoRepository(BaseRepository[Photo, PhotoCreate, PhotoUpdate]):
         super().__init__(session=session)
 
     async def update(self, db_obj: Photo, obj_in: PhotoUpdate) -> Photo:
+        """Обновляет фотографию с валидацией наличия связей."""
         obj_data = {
             c.name: getattr(db_obj, c.name) for c in db_obj.__table__.columns
         }

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 @asynccontextmanager
 async def atomic_transaction(session: AsyncSession) -> AsyncIterator[None]:
+    """Контекстный менеджер для атомарных транзакций в базе данных."""
     try:
         yield
         await session.commit()

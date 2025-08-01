@@ -47,6 +47,10 @@ SURVEY_DEFECT_FIELDS_CONFIG = {
 
 
 class SurveyDefectBase(BaseModel):
+    """
+    Базовая схема для конкретного обнаруженного при  обследовании дефекта.
+    """
+
     survey_id: Annotated[int, SURVEY_DEFECT_FIELDS_CONFIG["survey_id"]]
     defect_type_id: Annotated[
         int, SURVEY_DEFECT_FIELDS_CONFIG["defect_type_id"]
@@ -60,10 +64,14 @@ class SurveyDefectBase(BaseModel):
 
 
 class SurveyDefectCreate(SurveyDefectBase):
+    """Схема для создания нового конкретного обнаруженного дефекта."""
+
     pass
 
 
 class SurveyDefectUpdate(BaseModel):
+    """Схема для обновления конкретного дефекта."""
+
     description: Annotated[
         str | None, SURVEY_DEFECT_FIELDS_CONFIG["description"]
     ] = None
@@ -73,6 +81,8 @@ class SurveyDefectUpdate(BaseModel):
 
 
 class SurveyDefectRead(BaseModel):
+    """Схема для чтения дефекта со связанными сущностями."""
+
     id: Annotated[int, SURVEY_DEFECT_FIELDS_CONFIG["id"]]
     survey: Annotated["SurveyShortRead", SURVEY_DEFECT_FIELDS_CONFIG["survey"]]
     description: Annotated[

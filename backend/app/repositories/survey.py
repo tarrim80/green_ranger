@@ -13,6 +13,8 @@ from app.schemas import SurveyCreate, SurveyUpdate
 
 
 class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
+    """Репозиторий для работы с моделью обследований."""
+
     model = Survey
 
     def __init__(
@@ -24,6 +26,7 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
         super().__init__(session=session)
 
     async def get(self, id: int) -> Survey | None:
+        """Получает обследование по ID с загрузкой связанных сущностей."""
         statement = (
             select(self.model)
             .options(selectinload(self.model.tree).selectinload(Tree.sector))
@@ -37,6 +40,7 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[Survey]:
+        """Получает список обследований с загрузкой связанных сущностей."""
         statement = (
             select(self.model)
             .options(selectinload(self.model.tree).selectinload(Tree.sector))
@@ -49,6 +53,7 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
         return result.scalars().all()
 
     async def get_all_by_tree_id(self, tree_id: int) -> Sequence[Survey]:
+        """Получает все обследования для конкретного растения."""
         statement = (
             select(self.model)
             .options(selectinload(self.model.tree).selectinload(Tree.sector))

@@ -21,6 +21,8 @@ from app.utils.photo_uploader import save_uploaded_images
 
 
 class DefectTypeService(UpdateObjMixin):
+    """Сервисный слой для управления видами дефектов."""
+
     def __init__(
         self,
         repo: DefectTypeRepository = Depends(),
@@ -30,10 +32,12 @@ class DefectTypeService(UpdateObjMixin):
         self.photo_service = photo_service
 
     async def get_all_defect_types(self) -> list[DefectType]:
+        """Получает список всех видов дефектов."""
         defect_types_db = await self.repo.get_multi()
         return defect_types_db
 
     async def get_defect_type(self, obj_id: int) -> DefectType:
+        """Получает вид дефекта по его идентификатору."""
         defect_type_db = await self.repo.get(id=obj_id)
         if not defect_type_db:
             raise NotFoundError(
@@ -47,6 +51,7 @@ class DefectTypeService(UpdateObjMixin):
     async def create_with_photos(
         self, defect_type_in: DefectTypeCreate, files: list[UploadFile]
     ) -> DefectType:
+        """Создает новый вид дефекта с привязкой фотографий."""
         saved_file_paths = []
         try:
             photos_data, saved_file_paths = await save_uploaded_images(
@@ -82,6 +87,7 @@ class DefectTypeService(UpdateObjMixin):
     async def update_defect_type(
         self, obj_id: int, obj_in: DefectTypeUpdate
     ) -> DefectType:
+        """Обновляет данные существующего вида дефекта."""
         try:
             defect_type_db = await self.repo.get(id=obj_id)
             if not defect_type_db:
@@ -103,6 +109,7 @@ class DefectTypeService(UpdateObjMixin):
             ) from e
 
     async def _stage_deletion(self, defect_type_id: int) -> list[Path]:
+        """Подготавливает вид дефекта и связанные изображения к удалению."""
         defect_type_db = await self.repo.get(id=defect_type_id)
         if not defect_type_db:
             raise NotFoundError(
@@ -121,6 +128,7 @@ class DefectTypeService(UpdateObjMixin):
         return images_to_delete
 
     async def delete_with_images(self, defect_type_id: int) -> None:
+        """Удаляет вид дефекта и все связанные с ним изображения."""
         try:
             async with atomic_transaction(session=self.repo.session):
                 images_to_delete = await self._stage_deletion(

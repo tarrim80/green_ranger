@@ -12,12 +12,16 @@ TUpdate = TypeVar("TUpdate", bound=BaseModel)
 
 
 class BaseRepository(Generic[TModel, TCreate, TUpdate]):
+    """Базовый репозиторий для CRUD-операций."""
+
     model: Type[TModel]
 
     def __init__(self, session: AsyncSession) -> None:
+        """Инициализирует репозиторий с сессией базы данных."""
         self.session = session
 
     async def get(self, id: int) -> TModel | None:
+        """Получает один объект по его идентификатору."""
         result = await self.session.execute(
             statement=select(self.model).where(self.model.id == id)  # type: ignore
         )
@@ -26,6 +30,7 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[TModel]:
+        """Получает список объектов с пагинацией."""
         result = await self.session.execute(
             statement=select(self.model).offset(offset=skip).limit(limit=limit)
         )
@@ -41,17 +46,20 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         return list(result.scalars().all())
 
     async def create(self, obj_in: TCreate) -> TModel:
+        """Создает новый объект в сессии."""
         obj = self.model(**obj_in.model_dump())
         self.session.add(instance=obj)
         return obj
 
     async def create_many(self, objs_in: list[TCreate]) -> list[TModel]:
+        """Создает несколько новых объектов в сессии."""
         db_objs = [self.model(**obj_in.model_dump()) for obj_in in objs_in]
 
         self.session.add_all(instances=db_objs)
         return db_objs
 
     async def update(self, db_obj: TModel, obj_in: TUpdate) -> TModel:
+        """Обновляет существующий объект в сессии."""
         obj_data = obj_in.model_dump(exclude_unset=True)
         for field, value in obj_data.items():
             setattr(db_obj, field, value)
@@ -59,6 +67,7 @@ class BaseRepository(Generic[TModel, TCreate, TUpdate]):
         return db_obj
 
     async def remove(self, id: int) -> TModel | None:
+        """Удаляет объект из сессии по его идентификатору."""
         obj = await self.get(id=id)
         if not obj:
             return None

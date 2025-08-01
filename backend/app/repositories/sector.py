@@ -13,6 +13,8 @@ from app.schemas import SectorCreate, SectorUpdate
 
 
 class SectorRepository(BaseRepository[Sector, SectorCreate, SectorUpdate]):
+    """Репозиторий для работы с моделью учетных участков."""
+
     model = Sector
 
     def __init__(
@@ -24,6 +26,7 @@ class SectorRepository(BaseRepository[Sector, SectorCreate, SectorUpdate]):
         super().__init__(session=session)
 
     async def get(self, id: int) -> Sector | None:
+        """Получает участок по ID с загрузкой связанных сущностей."""
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.trees))
@@ -36,6 +39,7 @@ class SectorRepository(BaseRepository[Sector, SectorCreate, SectorUpdate]):
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[Sector]:
+        """Получает список участков с загрузкой связанных сущностей."""
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.trees))

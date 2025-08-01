@@ -23,6 +23,8 @@ from app.utils.photo_uploader import save_uploaded_images
 
 
 class SurveyService(UpdateObjMixin):
+    """Сервисный слой для управления обследованиями."""
+
     def __init__(
         self,
         repo: SurveyRepository = Depends(),
@@ -36,10 +38,12 @@ class SurveyService(UpdateObjMixin):
     async def get_all_surveys(
         self,
     ) -> list[Survey]:
+        """Получает список всех обследований."""
         surveys_db = await self.repo.get_multi()
         return list(surveys_db)
 
     async def get_survey(self, obj_id: int) -> Survey:
+        """Получает обследование по его идентификатору."""
         survey_db = await self.repo.get(id=obj_id)
         if not survey_db:
             raise NotFoundError(
@@ -51,12 +55,14 @@ class SurveyService(UpdateObjMixin):
         return survey_db
 
     async def get_surveys_by_tree_id(self, tree_id: int) -> list[Survey]:
+        """Получает все обследования для конкретного растения."""
         surveys_db = await self.repo.get_all_by_tree_id(tree_id=tree_id)
         return list(surveys_db)
 
     async def create_with_photos(
         self, survey_in: SurveyCreate, files: list[UploadFile]
     ) -> Survey:
+        """Создает новое обследование с привязкой фотографий."""
         saved_file_paths = []
         try:
             photos_data, saved_file_paths = await save_uploaded_images(
@@ -85,27 +91,12 @@ class SurveyService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY}: {e}"
             )
 
-    async def _stage_deletion(self, survey_db: Survey) -> list[Path]:
-        photos_to_delete = []
-        for survey_defect in survey_db.survey_defects:
-            defect_photos_to_delete = (
-                await self.defect_service._stage_deletion(
-                    defect_db=survey_defect
-                )
-            )
-            if defect_photos_to_delete:
-                photos_to_delete.extend(defect_photos_to_delete)
-        for tree_photo in survey_db.tree_photos:
-            tree_photo_to_delete = await self.photo_service._stage_deletion(
-                photo_id=tree_photo.id
-            )
-            photos_to_delete.append(tree_photo_to_delete)
-        await self.repo.remove(id=survey_db.id)
-        return photos_to_delete
-
     async def update_survey(
         self, obj_id: int, obj_in: SurveyUpdate, user: User
     ) -> Survey:
+        """
+        Обновляет данные существующего обследования с проверкой прав доступа.
+        """
         try:
             survey_db = await self.repo.get(id=obj_id)
             if not survey_db:
@@ -133,7 +124,31 @@ class SurveyService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
+    async def _stage_deletion(self, survey_db: Survey) -> list[Path]:
+        """
+        Подготавливает обследование и все связанные с ним данные к удалению.
+        """
+        photos_to_delete = []
+        for survey_defect in survey_db.survey_defects:
+            defect_photos_to_delete = (
+                await self.defect_service._stage_deletion(
+                    defect_db=survey_defect
+                )
+            )
+            if defect_photos_to_delete:
+                photos_to_delete.extend(defect_photos_to_delete)
+        for tree_photo in survey_db.tree_photos:
+            tree_photo_to_delete = await self.photo_service._stage_deletion(
+                photo_id=tree_photo.id
+            )
+            photos_to_delete.append(tree_photo_to_delete)
+        await self.repo.remove(id=survey_db.id)
+        return photos_to_delete
+
     async def delete_with_photos(self, survey_id: int, user: User) -> None:
+        """
+        Удаляет обследование и все связанные с ним данные с проверкой прав.
+        """
         try:
             survey_db = await self.repo.get(id=survey_id)
             if not survey_db:

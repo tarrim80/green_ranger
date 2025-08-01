@@ -20,6 +20,8 @@ from app.services.mixins import DeleteObjMixin
 
 
 class SectorService(DeleteObjMixin):
+    """Сервисный слой для управления учетными участками."""
+
     def __init__(
         self,
         repo: SectorRepository = Depends(),
@@ -29,10 +31,12 @@ class SectorService(DeleteObjMixin):
     async def get_all_sectors(
         self,
     ) -> list[Sector]:
+        """Получает список всех учетных участков."""
         sectors_db = await self.repo.get_multi()
         return list(sectors_db)
 
     async def get_sector(self, obj_id: int) -> Sector:
+        """Получает учетный участок по его идентификатору."""
         sector_db = await self.repo.get(id=obj_id)
         if not sector_db:
             raise NotFoundError(
@@ -44,6 +48,7 @@ class SectorService(DeleteObjMixin):
         return sector_db
 
     async def create_sector(self, sector_in: SectorCreate) -> Sector:
+        """Создает новый учетный участок."""
         shapely_geom = shape(context=sector_in.geometry)
         wkt_element = WKTElement(
             data=shapely_geom.wkt, srid=SRID_MERCATOR_WGS84
@@ -69,6 +74,7 @@ class SectorService(DeleteObjMixin):
             ) from e
 
     async def update_sector(self, obj_id: int, obj_in: SectorUpdate) -> Sector:
+        """Обновляет данные существующего учетного участка."""
         try:
             sector_db = await self.repo.get(id=obj_id)
             if not sector_db:
@@ -101,6 +107,7 @@ class SectorService(DeleteObjMixin):
             ) from e
 
     async def delete_sector(self, sector_id: int) -> None:
+        """Удаляет учетный участок с проверкой связанных сущностей."""
         try:
             sector = await self.repo.get(id=sector_id)
             if not sector:
