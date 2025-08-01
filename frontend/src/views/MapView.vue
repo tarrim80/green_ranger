@@ -5,7 +5,7 @@
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         layer-type="base"
         name="OpenStreetMap"
-        attribution="© OpenStreetMap contributors"
+        :attribution="mapAttribution"
       >
       </l-tile-layer>
       <l-control-scale position="bottomleft" :imperial="false" />
@@ -17,13 +17,6 @@
         ref="geoJsonLayer"
       ></l-geo-json>
     </l-map>
-    <confirm-dialog
-      v-model="confirmDialog.isOpen"
-      :title="confirmDialog.title"
-      :text="confirmDialog.text"
-      @confirm="confirmDialog.onConfirm"
-      @cancel="confirmDialog.onCancel"
-    />
   </div>
 </template>
 
@@ -35,7 +28,7 @@ import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 
 import { LMap, LTileLayer, LControlScale, LGeoJson } from "@vue-leaflet/vue-leaflet";
-import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/uiStore";
@@ -49,11 +42,12 @@ import { sectorService } from "@/services/sectorService";
 import { generateUniqueRandomColor } from "@/utils/colorGenerator";
 
 import CreateSectorForm from "@/components/CreateSectorForm.vue";
-import ConfirmDialog from "@/components/ConfirmDialog.vue";
 
 const mapInstance = ref(null);
 const zoom = ref(INITIAL_ZOOM);
 const center = ref(INITIAL_CENTER);
+const mapAttribution = ref('© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | ТОО "Теплица геоинформационных технологий" 2025г.');
+
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -68,14 +62,6 @@ let temporaryDrawingLayer = null;
 let mapObject = null;
 const isDrawing = ref(false);
 
-const confirmDialog = ref({
-  isOpen: false,
-  title: '',
-  text: '',
-  onConfirm: () => {},
-  onCancel: () => {},
-});
-
 const currentUserRole = computed(() => authStore.userRole);
 const currentUserId = computed(() => authStore.currentUser?.id);
 
@@ -87,16 +73,27 @@ const isCurrentUserAdmin = computed(() => {
   return currentUserRole.value === ROLES.ADMIN;
 });
 
-watch(() => uiStore.isPanelOpen, (isOpen, wasOpen) => {
+watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
   if (wasOpen && !isOpen) {
     if (currentlyEditingLayer) {
       currentlyEditingLayer.pm.disable();
       currentlyEditingLayer = null;
-      loadSectors();
+      await loadSectors();
     }
     if (temporaryDrawingLayer) {
       temporaryDrawingLayer.remove();
       temporaryDrawingLayer = null;
+    }
+
+    if (geoJsonLayer.value && geoJsonLayer.value.leafletObject.getBounds().isValid()) {
+      const allSectorsBounds = geoJsonLayer.value.leafletObject.getBounds();
+      const currentMapViewBounds = mapObject.getBounds();
+      
+      if (!currentMapViewBounds.contains(allSectorsBounds)) {
+        const center = allSectorsBounds.getCenter();
+        const zoom = mapObject.getBoundsZoom(allSectorsBounds);
+        mapObject.setView(center, zoom);
+      }
     }
   }
   if (mapObject) {
@@ -126,14 +123,21 @@ const onEachFeature = (feature, layer) => {
     if (currentlyEditingLayer) {
       currentlyEditingLayer.pm.disable();
     }
+
+    const bounds = layer.getBounds();
+    const center = bounds.getCenter();
+    const zoom = mapObject.getBoundsZoom(bounds);
+    mapObject.setView(center, zoom);
     
     layer.pm.enable({ allowSelfIntersection: false });
     currentlyEditingLayer = layer;
     
     await fetchFormData();
+
+    const sectorData = sectors.value.features.find(f => f.properties.id === feature.properties.id).properties;
     
     const props = {
-      sectorData: { id: feature.properties.id, ...feature.properties },
+      sectorData,
       curators: curatorList.value,
       teams: teamList.value,
       showCuratorSelection: isCurrentUserAdmin.value,
@@ -154,13 +158,7 @@ const loadSectors = async () => {
     const response = await sectorService.getSectors();
     const features = response.data.map((sector) => ({
       type: "Feature",
-      properties: {
-        id: sector.id,
-        name: sector.name,
-        color: sector.color,
-        curator_id: sector.curator.id,
-        team_id: sector.team ? sector.team.id : null,
-      },
+      properties: { ...sector },
       geometry: sector.geometry,
     }));
     sectors.value = { type: "FeatureCollection", features: features };
@@ -220,6 +218,11 @@ const onMapReady = (map) => {
     });
 
     mapObject.on("pm:create", async (e) => {
+      const bounds = e.layer.getBounds();
+      const center = bounds.getCenter();
+      const zoom = mapObject.getBoundsZoom(bounds);
+      mapObject.setView(center, zoom);
+
       const existingColors = sectors.value.features.map(f => f.properties.color);
       const newColor = generateUniqueRandomColor(existingColors);
       
@@ -241,8 +244,7 @@ const onMapReady = (map) => {
       const sectorId = e.layer.feature.properties.id;
       const sectorName = e.layer.feature.properties.name;
 
-      confirmDialog.value = {
-        isOpen: true,
+      uiStore.showConfirmDialog({
         title: 'Подтвердите удаление',
         text: `Вы уверены, что хотите удалить участок "${sectorName}"?`,
         onConfirm: async () => {
@@ -250,26 +252,26 @@ const onMapReady = (map) => {
             await sectorService.deleteSector(sectorId);
             await loadSectors();
           } catch (error) {
-            console.error("Ошибка при удалении участка:", error);
-            alert("Не удалось удалить участок.");
-            await loadSectors();
+            e.layer.addTo(mapObject);
+            const errorDetail = error.response?.data?.detail || error.message;
+            uiStore.showInfoDialog(`Участок "${sectorName}" не был удален`, errorDetail);
           }
         },
         onCancel: () => {
           e.layer.addTo(mapObject);
         }
-      };
+      });
     });
   }
 };
 
 const handleSave = async (data) => {
   const isUpdating = !!data.id;
-  let payload = data;
+  let payload = { ...data };
   
   if (isUpdating) {
     const updatedGeometry = currentlyEditingLayer.toGeoJSON().geometry;
-    payload = { ...data, geometry: updatedGeometry };
+    payload.geometry = updatedGeometry;
   }
   
   try {
@@ -287,8 +289,8 @@ const handleSave = async (data) => {
     await loadSectors();
     uiStore.closePanel();
   } catch (error) {
-    console.error("Ошибка сохранения:", error);
-    alert(`Ошибка: ${JSON.stringify(error.response?.data)}`);
+    const errorDetail = error.response?.data?.detail || JSON.stringify(error.response?.data) || error.message;
+    uiStore.showInfoDialog("Ошибка сохранения", `Не удалось сохранить участок. ${errorDetail}`);
   }
 };
 
@@ -299,7 +301,7 @@ onMounted(() => {
 
 <style scoped>
 .map-container {
-  height: 85vh;
+  height: 100%;
   width: 100%;
 }
 </style>

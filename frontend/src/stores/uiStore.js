@@ -7,6 +7,16 @@ export const useUiStore = defineStore("ui", {
     panelComponent: null,
     panelProps: {},
     panelTitle: "",
+
+    isInfoDialogOpen: false,
+    infoDialogTitle: "",
+    infoDialogText: "",
+
+    isConfirmDialogOpen: false,
+    confirmDialogTitle: "",
+    confirmDialogText: "",
+    confirmDialogOnConfirm: () => {},
+    confirmDialogOnCancel: () => {},
   }),
   actions: {
     openPanel(component, title, props = {}) {
@@ -20,6 +30,38 @@ export const useUiStore = defineStore("ui", {
       this.panelComponent = null;
       this.panelProps = {};
       this.panelTitle = "";
+    },
+
+    showInfoDialog(title, text) {
+      this.infoDialogTitle = title;
+      this.infoDialogText = text;
+      this.isInfoDialogOpen = true;
+    },
+    hideInfoDialog() {
+      this.isInfoDialogOpen = false;
+    },
+
+    showConfirmDialog({ title, text, onConfirm, onCancel = () => {} }) {
+      this.confirmDialogTitle = title;
+      this.confirmDialogText = text;
+      this.confirmDialogOnConfirm = onConfirm;
+      this.confirmDialogOnCancel = onCancel;
+      this.isConfirmDialogOpen = true;
+    },
+    hideConfirmDialog() {
+      this.isConfirmDialogOpen = false;
+      this.confirmDialogOnConfirm = () => {};
+      this.confirmDialogOnCancel = () => {};
+    },
+
+    triggerConfirm() {
+      this.confirmDialogOnConfirm();
+      this.hideConfirmDialog();
+    },
+
+    triggerCancel() {
+      this.confirmDialogOnCancel();
+      this.hideConfirmDialog();
     },
   },
 });

@@ -1,5 +1,5 @@
 <template>
-  <v-form ref="form">
+  <v-form ref="form" @submit.prevent="saveSector">
     <v-container>
       <v-row>
         <v-col cols="12">
@@ -55,7 +55,7 @@
     <v-card-actions>
       <v-spacer></v-spacer>
       <v-btn variant="text" @click="cancel">Отмена</v-btn>
-      <v-btn color="primary" variant="flat" @click="saveSector">Сохранить</v-btn>
+      <v-btn color="primary" variant="flat" type="submit">Сохранить</v-btn>
     </v-card-actions>
   </v-form>
 </template>
@@ -72,9 +72,9 @@ const props = defineProps({
   preselectedCuratorId: { type: Number, default: null },
   sectorData: { type: Object, default: null },
   initialColor: { type: String, default: '#1DE9B6' },
+  onSave: { type: Function, required: true },
 });
 
-const emit = defineEmits(['save']);
 const uiStore = useUiStore();
 
 const form = ref(null);
@@ -92,19 +92,20 @@ onMounted(() => {
   if (props.sectorData) {
     formData.value.name = props.sectorData.name;
     formData.value.color = props.sectorData.color;
-    formData.value.curator_id = props.sectorData.curator_id;
-    formData.value.team_id = props.sectorData.team_id;
-    if (props.sectorData.team_id) {
+    formData.value.curator_id = props.sectorData.curator.id;
+    formData.value.team_id = props.sectorData.team ? props.sectorData.team.id : null;
+    if (props.sectorData.team) {
       assignTeam.value = true;
     }
   } else {
     formData.value.color = props.initialColor;
   }
 
-  if (!props.showCuratorSelection) {
+  if (!props.showCuratorSelection && props.preselectedCuratorId) {
     formData.value.curator_id = props.preselectedCuratorId;
   }
 });
+
 
 const cancel = () => {
   uiStore.closePanel();
@@ -128,7 +129,7 @@ const saveSector = async () => {
     payload.team_id = null;
   }
 
-  emit('save', payload);
+  props.onSave(payload);
 };
 </script>
 

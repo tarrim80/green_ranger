@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import apiClient from "@/services/api";
 import router from "@/router";
+import { useUiStore } from "./uiStore";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -14,6 +15,7 @@ export const useAuthStore = defineStore("auth", {
   },
   actions: {
     async login(credentials) {
+      const uiStore = useUiStore();
       try {
         const formData = new FormData();
         formData.append("username", credentials.email);
@@ -35,7 +37,7 @@ export const useAuthStore = defineStore("auth", {
       } catch (error) {
         console.error("Ошибка аутентификации:", error);
         this.logout();
-        alert("Неверный логин или пароль!");
+        uiStore.showInfoDialog("Ошибка входа", "Неверный логин или пароль!");
       }
     },
 
