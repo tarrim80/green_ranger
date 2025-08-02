@@ -1,4 +1,3 @@
-<!-- frontend/src/views/LoginView.vue -->
 <template>
   <v-container class="fill-height">
     <v-row align="center" justify="center">
@@ -28,6 +27,7 @@
               ></v-text-field>
             </v-card-text>
             <v-card-actions>
+              <v-btn to="/register" variant="text">Создать аккаунт</v-btn>
               <v-spacer></v-spacer>
               <v-btn color="primary" type="submit">Войти</v-btn>
             </v-card-actions>
