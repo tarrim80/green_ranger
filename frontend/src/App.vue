@@ -1,7 +1,6 @@
 <template>
   <v-app>
     <router-view />
-    <side-panel-form-layout v-if="uiStore.isPanelOpen" />
     <info-dialog />
     <confirm-dialog />
   </v-app>

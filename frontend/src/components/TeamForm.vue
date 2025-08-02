@@ -7,6 +7,7 @@
             v-model="formData.name"
             label="Название команды"
             :rules="[rules.required]"
+            density="compact"
             required
           ></v-text-field>
         </v-col>
@@ -19,6 +20,7 @@
             item-value="id"
             label="Лидер команды"
             :rules="[rules.required]"
+            density="compact"
             required
           ></v-select>
         </v-col>
@@ -33,6 +35,7 @@
             multiple
             chips
             closable-chips
+            density="compact"
             :rules="[rules.required, rules.leaderIsMember]"
           ></v-select>
         </v-col>
@@ -47,8 +50,8 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
-import { useUiStore } from '@/stores/uiStore';
+import { ref, watch, computed } from "vue";
+import { useUiStore } from "@/stores/uiStore";
 
 const props = defineProps({
   teamData: { type: Object, default: null },
@@ -61,9 +64,14 @@ const form = ref(null);
 const formData = ref({});
 
 const rules = {
-  required: (v) => (Array.isArray(v) ? v.length > 0 : !!v) || 'Поле обязательно для заполнения.',
+  required: (v) =>
+    (Array.isArray(v) ? v.length > 0 : !!v) || "Поле обязательно для заполнения.",
   leaderIsMember: computed(() => {
-    return (v) => (v && v.includes(formData.value.leader_id)) || 'Лидер команды должен быть в списке участников.';
+    return (
+      (v) =>
+        (v && v.includes(formData.value.leader_id)) ||
+        "Лидер команды должен быть в списке участников."
+    );
   }),
 };
 
@@ -73,21 +81,24 @@ const updateFormData = (data) => {
       id: data.id,
       name: data.name,
       leader_id: data.leader.id,
-      member_ids: data.members.map(m => m.id),
+      member_ids: data.members.map((m) => m.id),
     };
   } else {
     formData.value = {
-      name: '',
+      name: "",
       leader_id: null,
       member_ids: [],
     };
   }
 };
 
-watch(() => props.teamData, (newTeamData) => {
-  updateFormData(newTeamData);
-}, { immediate: true });
-
+watch(
+  () => props.teamData,
+  (newTeamData) => {
+    updateFormData(newTeamData);
+  },
+  { immediate: true }
+);
 
 const saveTeam = async () => {
   const { valid } = await form.value.validate();

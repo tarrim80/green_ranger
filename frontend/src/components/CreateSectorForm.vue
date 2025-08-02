@@ -2,16 +2,18 @@
   <v-form ref="form" @submit.prevent="saveSector">
     <v-container>
       <v-row>
-        <v-col cols="12">
+        <v-col cols="12" class="py-2">
           <v-text-field
             v-model="formData.name"
             label="Название участка"
             :rules="[requiredRule]"
+            density="compact"
+            hide-details="auto"
             required
           ></v-text-field>
         </v-col>
 
-        <v-col cols="12" v-if="props.showCuratorSelection">
+        <v-col cols="12" class="py-2" v-if="props.showCuratorSelection">
           <v-select
             v-model="formData.curator_id"
             :items="props.curators"
@@ -19,18 +21,22 @@
             item-value="id"
             label="Куратор"
             :rules="[requiredRule]"
+            density="compact"
+            hide-details="auto"
             required
           ></v-select>
         </v-col>
 
-        <v-col cols="12" v-if="props.showCuratorSelection">
+        <v-col cols="12" class="py-2" v-if="props.showCuratorSelection">
           <v-checkbox
             v-model="assignTeam"
             label="Назначить команду"
+            density="compact"
+            hide-details="auto"
           ></v-checkbox>
         </v-col>
 
-        <v-col cols="12" v-if="assignTeam">
+        <v-col cols="12" class="py-2" v-if="assignTeam">
           <v-select
             v-model="formData.team_id"
             :items="props.teams"
@@ -38,16 +44,20 @@
             item-value="id"
             label="Команда"
             :rules="assignTeam ? [requiredRule] : []"
+            density="compact"
+            hide-details="auto"
             required
           ></v-select>
         </v-col>
-        
-        <v-col cols="12">
-          <p class="text-subtitle-1">Цвет участка</p>
+
+        <v-col cols="12" class="py-2">
+          <p class="text-body-2 mt-2">Цвет участка</p>
           <v-color-picker
             v-model="formData.color"
             mode="hex"
             hide-alpha
+            height="170"
+            width="100%"
           ></v-color-picker>
         </v-col>
       </v-row>
@@ -61,8 +71,8 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
-import { useUiStore } from '@/stores/uiStore';
+import { ref, watch, computed } from "vue";
+import { useUiStore } from "@/stores/uiStore";
 
 const props = defineProps({
   curators: { type: Array, required: true },
@@ -71,7 +81,7 @@ const props = defineProps({
   showCuratorSelection: { type: Boolean, default: true },
   preselectedCuratorId: { type: Number, default: null },
   sectorData: { type: Object, default: null },
-  initialColor: { type: String, default: '#1DE9B6' },
+  initialColor: { type: String, default: "#1DE9B6" },
   onSave: { type: Function, required: true },
 });
 
@@ -80,7 +90,7 @@ const uiStore = useUiStore();
 const form = ref(null);
 const assignTeam = ref(false);
 const formData = ref({});
-const initialFormDataString = ref('');
+const initialFormDataString = ref("");
 
 const isFormDirty = computed(() => {
   return JSON.stringify(formData.value) !== initialFormDataString.value;
@@ -90,7 +100,7 @@ watch(isFormDirty, (isDirty) => {
   uiStore.setFormDirty(isDirty);
 });
 
-const requiredRule = (v) => !!v || 'Поле обязательно для заполнения';
+const requiredRule = (v) => !!v || "Поле обязательно для заполнения";
 
 const updateFormData = (data) => {
   const newFormData = {};
@@ -106,9 +116,12 @@ const updateFormData = (data) => {
       assignTeam.value = false;
     }
   } else {
-    newFormData.name = '';
+    newFormData.name = "";
     newFormData.color = props.initialColor;
-    newFormData.curator_id = !props.showCuratorSelection && props.preselectedCuratorId ? props.preselectedCuratorId : null;
+    newFormData.curator_id =
+      !props.showCuratorSelection && props.preselectedCuratorId
+        ? props.preselectedCuratorId
+        : null;
     newFormData.team_id = null;
     assignTeam.value = false;
   }
@@ -116,10 +129,13 @@ const updateFormData = (data) => {
   initialFormDataString.value = JSON.stringify(newFormData);
 };
 
-watch(() => props.sectorData, (newSectorData) => {
-  updateFormData(newSectorData);
-}, { immediate: true });
-
+watch(
+  () => props.sectorData,
+  (newSectorData) => {
+    updateFormData(newSectorData);
+  },
+  { immediate: true }
+);
 
 const cancel = () => {
   uiStore.closePanel();
@@ -128,17 +144,17 @@ const cancel = () => {
 const saveSector = async () => {
   const { valid } = await form.value.validate();
   if (!valid) return;
-  
+
   const payload = { ...formData.value };
-  
+
   if (props.sectorData?.id) {
     payload.id = props.sectorData.id;
   }
-  
+
   if (props.geometry) {
     payload.geometry = props.geometry;
   }
-  
+
   if (!assignTeam.value) {
     payload.team_id = null;
   }
@@ -151,4 +167,7 @@ const saveSector = async () => {
 :deep(.v-color-picker-edit .v-btn) {
   display: none;
 }
+:deep(.v-color-picker-canvas) {
+  padding: 10px 0;
+  }
 </style>

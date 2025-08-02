@@ -4,13 +4,17 @@
     location="right"
     :width="panelWidth"
   >
-    <v-toolbar color="primary">
-      <v-toolbar-title>{{ uiStore.panelTitle }}</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <v-btn icon @click="uiStore.closePanel">
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
-    </v-toolbar>
+    <v-list-item density="compact">
+      <v-list-item-title>{{ uiStore.panelTitle }}</v-list-item-title>
+      <template #append>
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          @click="uiStore.closePanel"
+        ></v-btn>
+      </template>
+    </v-list-item>
+    <v-divider></v-divider>
 
     <v-sheet class="pa-4">
       <component
@@ -23,7 +27,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 const uiStore = useUiStore();
 

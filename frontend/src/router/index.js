@@ -1,3 +1,4 @@
+// ВЕСЬ ФАЙЛ
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/uiStore";
@@ -11,9 +12,6 @@ import TeamsView from "@/views/TeamsView.vue";
 import UsersView from "@/views/UsersView.vue";
 import DefectTypesView from "@/views/DefectTypesView.vue";
 
-import AdminSidebar from "@/views/sidebars/AdminSidebar.vue";
-import DefaultSidebar from "@/views/sidebars/DefaultSidebar.vue";
-
 const routes = [
   {
     path: "/",
@@ -22,37 +20,34 @@ const routes = [
       {
         path: "",
         name: "Map",
-        components: {
-          default: MapView,
-          sidebar: DefaultSidebar,
+        component: MapView,
+      },
+      {
+        path: "sectors",
+        name: "Sectors",
+        component: MapView,
+        meta: {
+          requiresAuth: true,
+          requiredRole: [ROLES.ADMIN, ROLES.CURATOR],
         },
       },
       {
         path: "teams",
         name: "Teams",
-        components: {
-          default: TeamsView,
-          sidebar: AdminSidebar,
-        },
-        meta: { requiresAuth: true, requiredRole: ROLES.ADMIN },
+        component: TeamsView,
+        meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
       },
       {
         path: "users",
         name: "Users",
-        components: {
-          default: UsersView,
-          sidebar: AdminSidebar,
-        },
-        meta: { requiresAuth: true, requiredRole: ROLES.ADMIN },
+        component: UsersView,
+        meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
       },
       {
         path: "defect-types",
         name: "DefectTypes",
-        components: {
-          default: DefectTypesView,
-          sidebar: AdminSidebar,
-        },
-        meta: { requiresAuth: true, requiredRole: ROLES.ADMIN },
+        component: DefectTypesView,
+        meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
       },
     ],
   },
@@ -81,7 +76,10 @@ router.beforeEach((to, from, next) => {
 
   if (requiresAuth && !authStore.isAuthenticated) {
     next({ name: "Login" });
-  } else if (requiredRole && authStore.userRole !== requiredRole) {
+  } else if (
+    requiredRole &&
+    (!authStore.userRole || !requiredRole.includes(authStore.userRole))
+  ) {
     uiStore.showInfoDialog(
       "Ошибка доступа",
       "У вас нет прав для доступа к этой странице."

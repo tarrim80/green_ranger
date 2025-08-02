@@ -12,19 +12,9 @@
       to="/sectors"
     ></v-list-item>
     <v-list-item
-      prepend-icon="mdi-account-group-outline"
-      title="Команды"
-      to="/teams"
-    ></v-list-item>
-    <v-list-item
-      prepend-icon="mdi-account-multiple-outline"
-      title="Пользователи"
-      to="/users"
-    ></v-list-item>
-    <v-list-item
-      prepend-icon="mdi-book-open-variant"
-      title="Виды дефектов"
-      to="/defect-types"
+      prepend-icon="mdi-checkbox-marked-circle-outline"
+      title="На проверку"
+      to="/review"
     ></v-list-item>
   </v-list>
 </template>
