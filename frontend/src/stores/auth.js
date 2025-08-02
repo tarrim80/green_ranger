@@ -13,6 +13,14 @@ export const useAuthStore = defineStore("auth", {
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
     userRole: (state) => (state.currentUser ? state.currentUser.role : null),
+    userFullname: (state) => {
+      if (state.currentUser) {
+        return `${state.currentUser.firstname || ""} ${
+          state.currentUser.lastname || ""
+        }`.trim();
+      }
+      return "";
+    },
   },
   actions: {
     async login(credentials) {

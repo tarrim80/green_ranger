@@ -8,7 +8,7 @@ import L from "leaflet";
 import "@geoman-io/leaflet-geoman-free";
 
 import { useRoute } from "vue-router";
-import { ref, computed, onMounted, watch, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 
 import CreateSectorForm from "@/components/CreateSectorForm.vue";
 
@@ -28,7 +28,7 @@ const uiStore = useUiStore();
 const mapStore = useMapStore();
 const { sectors, loadSectors, geoJsonStyle } = useSectorsMap();
 
-const geoJsonLayer = ref(null);
+let geoJsonLayer = null;
 const curatorList = ref([]);
 const teamList = ref([]);
 let currentlyEditingLayer = null;
@@ -47,24 +47,6 @@ const isManagementMode = computed(() => {
 
 const currentUserId = computed(() => authStore.currentUser?.id);
 const isCurrentUserAdmin = computed(() => authStore.userRole === ROLES.ADMIN);
-
-const addSectorsLayer = () => {
-  if (mapStore.mapInstance && sectors.value.features.length > 0) {
-    const layer = L.geoJSON(sectors.value, {
-      style: geoJsonStyle,
-      onEachFeature: onEachFeature,
-    });
-    geoJsonLayer.value = layer;
-    mapStore.mapInstance.addLayer(layer);
-  }
-};
-
-const removeSectorsLayer = () => {
-  if (geoJsonLayer.value && mapStore.mapInstance) {
-    mapStore.mapInstance.removeLayer(geoJsonLayer.value);
-    geoJsonLayer.value = null;
-  }
-};
 
 const toggleManagementFeatures = (enable) => {
   if (!mapStore.mapInstance) return;
@@ -109,10 +91,28 @@ watch(isManagementMode, (newValue) => {
   toggleManagementFeatures(newValue);
 });
 
-watch(sectors, () => {
-  removeSectorsLayer();
-  addSectorsLayer();
+watch(sectors, (newSectorsData) => {
+  if (geoJsonLayer) {
+    geoJsonLayer.clearLayers();
+    geoJsonLayer.addData(newSectorsData);
+  }
 });
+
+watch(
+  () => mapStore.mapInstance,
+  async (newMapInstance) => {
+    if (newMapInstance) {
+      geoJsonLayer = L.geoJSON(null, {
+        style: geoJsonStyle,
+        onEachFeature: onEachFeature,
+      }).addTo(newMapInstance);
+
+      await loadSectors();
+      toggleManagementFeatures(isManagementMode.value);
+    }
+  },
+  { immediate: true }
+);
 
 watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
   if (wasOpen && !isOpen) {
@@ -120,11 +120,21 @@ watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
       currentlyEditingLayer.pm.disable();
       currentlyEditingLayer = null;
       originalGeometryString.value = null;
-      await loadSectors();
     }
     if (temporaryDrawingLayer) {
       mapStore.mapInstance.removeLayer(temporaryDrawingLayer);
       temporaryDrawingLayer = null;
+    }
+    await loadSectors();
+
+    if (geoJsonLayer) {
+      const allSectorsBounds = geoJsonLayer.getBounds();
+      if (allSectorsBounds.isValid()) {
+        const currentMapViewBounds = mapStore.mapInstance.getBounds();
+        if (!currentMapViewBounds.contains(allSectorsBounds)) {
+          mapStore.mapInstance.fitBounds(allSectorsBounds);
+        }
+      }
     }
   }
 });
@@ -136,11 +146,11 @@ const onEachFeature = (feature, layer) => {
   layer.on("click", (e) => {
     if (!isManagementMode.value) return;
     L.DomEvent.stopPropagation(e);
-    openEditPanel(e.target);
+    handleLayerClick(e.target);
   });
 };
 
-const openEditPanel = async (layer) => {
+const handleLayerClick = (layer) => {
   if (
     isDrawing.value ||
     mapStore.mapInstance.pm.globalRemovalModeEnabled() ||
@@ -175,28 +185,33 @@ const openEditPanel = async (layer) => {
   }
 };
 
-const startEditing = async (layer) => {
+const startEditing = (layer) => {
   if (currentlyEditingLayer) {
     currentlyEditingLayer.pm.disable();
   }
-  mapStore.mapInstance.fitBounds(layer.getBounds());
-  layer.pm.enable({ allowSelfIntersection: false });
   currentlyEditingLayer = layer;
   originalGeometryString.value = JSON.stringify(layer.toGeoJSON().geometry);
-  await fetchFormData();
-  const feature = layer.feature;
-  const sectorData = sectors.value.features.find(
-    (f) => f.properties.id === feature.properties.id
-  ).properties;
-  const props = {
-    sectorData,
-    curators: curatorList.value,
-    teams: teamList.value,
-    showCuratorSelection: isCurrentUserAdmin.value,
-    preselectedCuratorId: currentUserId.value,
-    onSave: handleSave,
-  };
-  uiStore.openPanel(CreateSectorForm, "Редактирование участка", props);
+
+  mapStore.mapInstance.fitBounds(layer.getBounds());
+
+  mapStore.mapInstance.once("moveend", async () => {
+    layer.pm.enable({ allowSelfIntersection: false });
+
+    await fetchFormData();
+    const feature = layer.feature;
+    const sectorData = sectors.value.features.find(
+      (f) => f.properties.id === feature.properties.id
+    ).properties;
+    const props = {
+      sectorData,
+      curators: curatorList.value,
+      teams: teamList.value,
+      showCuratorSelection: isCurrentUserAdmin.value,
+      preselectedCuratorId: currentUserId.value,
+      onSave: handleSave,
+    };
+    uiStore.openPanel(CreateSectorForm, "Редактирование участка", props);
+  });
 };
 
 const fetchFormData = async () => {
@@ -229,23 +244,26 @@ const onDrawStart = () => (isDrawing.value = true);
 const onDrawEnd = () => (isDrawing.value = false);
 
 const onCreate = async (e) => {
-  mapStore.mapInstance.fitBounds(e.layer.getBounds());
-  const existingColors = sectors.value.features.map(
-    (f) => f.properties.color
-  );
-  const newColor = generateUniqueRandomColor(existingColors);
   temporaryDrawingLayer = e.layer;
-  await fetchFormData();
-  const props = {
-    geometry: e.layer.toGeoJSON().geometry,
-    curators: curatorList.value,
-    teams: teamList.value,
-    showCuratorSelection: isCurrentUserAdmin.value,
-    preselectedCuratorId: currentUserId.value,
-    initialColor: newColor,
-    onSave: handleSave,
-  };
-  uiStore.openPanel(CreateSectorForm, "Создание участка", props);
+  mapStore.mapInstance.fitBounds(e.layer.getBounds());
+
+  mapStore.mapInstance.once("moveend", async () => {
+    const existingColors = sectors.value.features.map(
+      (f) => f.properties.color
+    );
+    const newColor = generateUniqueRandomColor(existingColors);
+    await fetchFormData();
+    const props = {
+      geometry: e.layer.toGeoJSON().geometry,
+      curators: curatorList.value,
+      teams: teamList.value,
+      showCuratorSelection: isCurrentUserAdmin.value,
+      preselectedCuratorId: currentUserId.value,
+      initialColor: newColor,
+      onSave: handleSave,
+    };
+    uiStore.openPanel(CreateSectorForm, "Создание участка", props);
+  });
 };
 
 const onRemove = (e) => {
@@ -288,7 +306,6 @@ const handleSave = async (data) => {
       temporaryDrawingLayer = null;
     }
     originalGeometryString.value = null;
-    await loadSectors();
     uiStore.closePanel();
   } catch (error) {
     const errorDetail =
@@ -302,14 +319,10 @@ const handleSave = async (data) => {
   }
 };
 
-onMounted(async () => {
-  await loadSectors();
-  addSectorsLayer();
-  toggleManagementFeatures(isManagementMode.value);
-});
-
 onUnmounted(() => {
-  removeSectorsLayer();
+  if (geoJsonLayer) {
+    mapStore.mapInstance.removeLayer(geoJsonLayer);
+  }
   toggleManagementFeatures(false);
 });
 </script>

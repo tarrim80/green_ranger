@@ -32,6 +32,6 @@ import { useUiStore } from "@/stores/uiStore";
 const uiStore = useUiStore();
 
 const panelWidth = computed(() => {
-  return window.innerWidth * 0.32;
+  return window.innerWidth * 0.25;
 });
 </script>

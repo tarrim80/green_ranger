@@ -9,9 +9,9 @@
 
     <v-navigation-drawer v-if="authStore.isAuthenticated" permanent>
       <v-list-item
-        v-if="authStore.currentUser"
-        :title="authStore.currentUser.fullname"
-        :subtitle="authStore.currentUser.role"
+          v-if="authStore.currentUser"
+          :title="authStore.userFullname"
+          :subtitle="authStore.currentUser.role"
       ></v-list-item>
       <v-divider></v-divider>
 

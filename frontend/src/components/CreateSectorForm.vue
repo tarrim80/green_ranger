@@ -9,6 +9,7 @@
             :rules="[requiredRule]"
             density="compact"
             hide-details="auto"
+            variant="outlined"
             required
           ></v-text-field>
         </v-col>
@@ -23,6 +24,7 @@
             :rules="[requiredRule]"
             density="compact"
             hide-details="auto"
+            variant="outlined"
             required
           ></v-select>
         </v-col>
@@ -46,17 +48,18 @@
             :rules="assignTeam ? [requiredRule] : []"
             density="compact"
             hide-details="auto"
+            variant="outlined"
             required
           ></v-select>
         </v-col>
 
         <v-col cols="12" class="py-2">
-          <p class="text-body-2 mt-2">Цвет участка</p>
+          <p class="text-body-2 mt-2 mb-1">Цвет участка</p>
           <v-color-picker
             v-model="formData.color"
             mode="hex"
+            hide-canvas
             hide-alpha
-            height="170"
             width="100%"
           ></v-color-picker>
         </v-col>
@@ -169,5 +172,11 @@ const saveSector = async () => {
 }
 :deep(.v-color-picker-canvas) {
   padding: 10px 0;
-  }
+}
+:deep(.v-field__input) {
+  font-size: 0.875rem !important;
+}
+:deep(.v-label.v-field-label) {
+  font-size: 0.875rem !important;
+}
 </style>
