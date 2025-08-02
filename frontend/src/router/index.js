@@ -3,26 +3,55 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/uiStore";
 import { ROLES } from "@/constants/roles";
 
-import MainLayout from "@/components/layouts/MainLayout.vue";
+import AppLayout from "@/components/layouts/AppLayout.vue";
 import LoginView from "@/views/LoginView.vue";
 import RegisterView from "@/views/RegisterView.vue";
 import MapView from "@/views/MapView.vue";
 import TeamsView from "@/views/TeamsView.vue";
+import UsersView from "@/views/UsersView.vue";
+import DefectTypesView from "@/views/DefectTypesView.vue";
+
+import AdminSidebar from "@/views/sidebars/AdminSidebar.vue";
+import DefaultSidebar from "@/views/sidebars/DefaultSidebar.vue";
 
 const routes = [
   {
     path: "/",
-    component: MainLayout,
+    component: AppLayout,
     children: [
       {
         path: "",
         name: "Map",
-        component: MapView,
+        components: {
+          default: MapView,
+          sidebar: DefaultSidebar,
+        },
       },
       {
         path: "teams",
         name: "Teams",
-        component: TeamsView,
+        components: {
+          default: TeamsView,
+          sidebar: AdminSidebar,
+        },
+        meta: { requiresAuth: true, requiredRole: ROLES.ADMIN },
+      },
+      {
+        path: "users",
+        name: "Users",
+        components: {
+          default: UsersView,
+          sidebar: AdminSidebar,
+        },
+        meta: { requiresAuth: true, requiredRole: ROLES.ADMIN },
+      },
+      {
+        path: "defect-types",
+        name: "DefectTypes",
+        components: {
+          default: DefectTypesView,
+          sidebar: AdminSidebar,
+        },
         meta: { requiresAuth: true, requiredRole: ROLES.ADMIN },
       },
     ],

@@ -30,7 +30,6 @@ export const useAuthStore = defineStore("auth", {
         router.push("/");
       } catch (error) {
         console.error("Ошибка аутентификации:", error);
-        this.logout();
         uiStore.showInfoDialog("Ошибка входа", "Неверный логин или пароль!");
       }
     },
@@ -84,15 +83,19 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    logout() {
+    clearAuthData() {
       this.accessToken = null;
       this.refreshToken = null;
       this.currentUser = null;
-
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
+    },
 
-      router.push("/login");
+    logout() {
+      this.clearAuthData();
+      if (router.currentRoute.value.path !== "/") {
+        router.push("/");
+      }
     },
   },
 });

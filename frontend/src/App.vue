@@ -48,3 +48,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown);
 });
 </script>
+
+<style>
+html {
+  overflow-y: auto !important;
+}
+</style>
