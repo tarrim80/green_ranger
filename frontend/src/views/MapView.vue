@@ -48,7 +48,6 @@ const zoom = ref(INITIAL_ZOOM);
 const center = ref(INITIAL_CENTER);
 const mapAttribution = ref('© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | ТОО "Теплица геоинформационных технологий" 2025г.');
 
-
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 
@@ -61,6 +60,7 @@ let currentlyEditingLayer = null;
 let temporaryDrawingLayer = null;
 let mapObject = null;
 const isDrawing = ref(false);
+const originalGeometryString = ref(null);
 
 const currentUserRole = computed(() => authStore.userRole);
 const currentUserId = computed(() => authStore.currentUser?.id);
@@ -78,6 +78,7 @@ watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
     if (currentlyEditingLayer) {
       currentlyEditingLayer.pm.disable();
       currentlyEditingLayer = null;
+      originalGeometryString.value = null;
       await loadSectors();
     }
     if (temporaryDrawingLayer) {
@@ -108,18 +109,7 @@ const geoJsonStyle = (feature) => ({
   fillOpacity: 0.3,
 });
 
-const onEachFeature = (feature, layer) => {
-  if (feature.properties && feature.properties.name) {
-    layer.bindPopup(feature.properties.name);
-  }
-
-  layer.on('click', async (e) => {
-    L.DomEvent.stopPropagation(e);
-    
-    if (isDrawing.value || mapObject.pm.globalRemovalModeEnabled()) {
-      return;
-    }
-
+const openEditPanel = async (layer) => {
     if (currentlyEditingLayer) {
       currentlyEditingLayer.pm.disable();
     }
@@ -131,9 +121,11 @@ const onEachFeature = (feature, layer) => {
     
     layer.pm.enable({ allowSelfIntersection: false });
     currentlyEditingLayer = layer;
+    originalGeometryString.value = JSON.stringify(layer.toGeoJSON().geometry);
     
     await fetchFormData();
 
+    const feature = layer.feature;
     const sectorData = sectors.value.features.find(f => f.properties.id === feature.properties.id).properties;
     
     const props = {
@@ -146,7 +138,44 @@ const onEachFeature = (feature, layer) => {
     };
     
     uiStore.openPanel(CreateSectorForm, 'Редактирование участка', props);
-  });
+};
+
+const onEachFeature = (feature, layer) => {
+  if (feature.properties && feature.properties.name) {
+    layer.bindPopup(feature.properties.name);
+  }
+
+  if ([ROLES.ADMIN, ROLES.CURATOR].includes(currentUserRole.value)) {
+    layer.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      const newLayer = e.target;
+
+      if (isDrawing.value || mapObject.pm.globalRemovalModeEnabled() || newLayer === currentlyEditingLayer) {
+        return;
+      }
+
+      const geometryIsDirty = currentlyEditingLayer && 
+        JSON.stringify(currentlyEditingLayer.toGeoJSON().geometry) !== originalGeometryString.value;
+
+      if (uiStore.isFormDirty || geometryIsDirty) {
+        uiStore.showConfirmDialog({
+          title: 'Несохраненные изменения',
+          text: 'Вы уверены, что хотите отменить изменения? Все несохраненные данные будут потеряны.',
+          onConfirm: () => {
+            if (geometryIsDirty) {
+              const originalGeometry = JSON.parse(originalGeometryString.value);
+              const originalLatLngs = originalGeometry.coordinates[0].map(p => [p[1], p[0]]);
+              currentlyEditingLayer.setLatLngs(originalLatLngs);
+            }
+            openEditPanel(newLayer);
+          },
+          onCancel: () => {},
+        });
+      } else {
+        openEditPanel(newLayer);
+      }
+    });
+  }
 };
 
 const geoJsonOptions = computed(() => ({
@@ -191,11 +220,11 @@ const onMapReady = (map) => {
 
   if (canDraw.value) {
     mapObject.pm.setLang("ru");
+
     mapObject.pm.addControls({
       position: "topleft",
-      drawPolygon: {
-        allowIntersection: false,
-      },
+      drawPolygon: { allowIntersection: false },
+      removalMode: true,
       drawMarker: false,
       drawCircleMarker: false,
       drawPolyline: false,
@@ -205,7 +234,6 @@ const onMapReady = (map) => {
       editMode: false,
       dragMode: false,
       cutPolygon: false,
-      removalMode: true,
       rotateMode: false,
     });
     
@@ -285,7 +313,8 @@ const handleSave = async (data) => {
         temporaryDrawingLayer.remove();
         temporaryDrawingLayer = null;
     }
-
+    
+    originalGeometryString.value = null;
     await loadSectors();
     uiStore.closePanel();
   } catch (error) {

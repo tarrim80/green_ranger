@@ -17,6 +17,8 @@ export const useUiStore = defineStore("ui", {
     confirmDialogText: "",
     confirmDialogOnConfirm: () => {},
     confirmDialogOnCancel: () => {},
+
+    isFormDirty: false,
   }),
   actions: {
     openPanel(component, title, props = {}) {
@@ -30,6 +32,7 @@ export const useUiStore = defineStore("ui", {
       this.panelComponent = null;
       this.panelProps = {};
       this.panelTitle = "";
+      this.isFormDirty = false;
     },
 
     showInfoDialog(title, text) {
@@ -62,6 +65,10 @@ export const useUiStore = defineStore("ui", {
     triggerCancel() {
       this.confirmDialogOnCancel();
       this.hideConfirmDialog();
+    },
+
+    setFormDirty(isDirty) {
+      this.isFormDirty = isDirty;
     },
   },
 });

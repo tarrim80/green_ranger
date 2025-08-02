@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useUiStore } from '@/stores/uiStore';
 
 const props = defineProps({
@@ -79,32 +79,46 @@ const uiStore = useUiStore();
 
 const form = ref(null);
 const assignTeam = ref(false);
-const formData = ref({
-  name: '',
-  color: '#1DE9B6',
-  curator_id: null,
-  team_id: null,
+const formData = ref({});
+const initialFormDataString = ref('');
+
+const isFormDirty = computed(() => {
+  return JSON.stringify(formData.value) !== initialFormDataString.value;
+});
+
+watch(isFormDirty, (isDirty) => {
+  uiStore.setFormDirty(isDirty);
 });
 
 const requiredRule = (v) => !!v || 'Поле обязательно для заполнения';
 
-onMounted(() => {
-  if (props.sectorData) {
-    formData.value.name = props.sectorData.name;
-    formData.value.color = props.sectorData.color;
-    formData.value.curator_id = props.sectorData.curator.id;
-    formData.value.team_id = props.sectorData.team ? props.sectorData.team.id : null;
-    if (props.sectorData.team) {
+const updateFormData = (data) => {
+  const newFormData = {};
+  if (data) {
+    newFormData.name = data.name;
+    newFormData.color = data.color;
+    newFormData.curator_id = data.curator.id;
+    if (data.team) {
+      newFormData.team_id = data.team.id;
       assignTeam.value = true;
+    } else {
+      newFormData.team_id = null;
+      assignTeam.value = false;
     }
   } else {
-    formData.value.color = props.initialColor;
+    newFormData.name = '';
+    newFormData.color = props.initialColor;
+    newFormData.curator_id = !props.showCuratorSelection && props.preselectedCuratorId ? props.preselectedCuratorId : null;
+    newFormData.team_id = null;
+    assignTeam.value = false;
   }
+  formData.value = newFormData;
+  initialFormDataString.value = JSON.stringify(newFormData);
+};
 
-  if (!props.showCuratorSelection && props.preselectedCuratorId) {
-    formData.value.curator_id = props.preselectedCuratorId;
-  }
-});
+watch(() => props.sectorData, (newSectorData) => {
+  updateFormData(newSectorData);
+}, { immediate: true });
 
 
 const cancel = () => {
