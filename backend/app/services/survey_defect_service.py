@@ -110,7 +110,7 @@ class SurveyDefectService(UpdateObjMixin):
             )
             if not permission:
                 raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHNT_FOR_ACTION
+                    ExceptionDetails.NO_RIGHT_FOR_ACTION
                 )
             defect = await self.update_obj(db_obj=defect_db, obj_in=obj_in)
             return defect
@@ -153,7 +153,7 @@ class SurveyDefectService(UpdateObjMixin):
             )
             if not permission:
                 raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHNT_FOR_ACTION
+                    ExceptionDetails.NO_RIGHT_FOR_ACTION
                 )
             async with atomic_transaction(session=self.repo.session):
                 photos_to_delete = await self._stage_deletion(

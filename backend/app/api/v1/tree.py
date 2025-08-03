@@ -81,12 +81,26 @@ async def create_tree(
         tree_with_author = TreeCreateWithAuthor(
             **tree_in.model_dump(), author_id=current_user.id
         )
-        tree_db = await service.create_tree(obj_in=tree_with_author)
+        tree_db = await service.create_tree(
+            obj_in=tree_with_author, user=current_user
+        )
         return TreeRead.model_validate(obj=tree_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(e)
+        ) from e
     except TreeCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        ) from e
 
 
 @router.patch(
