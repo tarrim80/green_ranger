@@ -18,6 +18,8 @@ from app.core.user import UserManager, fastapi_users, get_user_manager
 from app.models import User
 from app.schemas.user import UserCreate, UserRead, UserShortRead, UserUpdate
 
+from ...schemas.enums import RoleEnum
+
 bearer_scheme = HTTPBearer()
 
 auth_router = APIRouter()
@@ -31,11 +33,6 @@ auth_router.include_router(
         user_schema=UserRead, user_create_schema=UserCreate
     ),
     prefix="/jwt",
-)
-user_router.include_router(
-    router=fastapi_users.get_users_router(
-        user_schema=UserRead, user_update_schema=UserUpdate
-    ),
 )
 
 
@@ -127,6 +124,44 @@ async def list_users(
     result = await session.execute(select(User))
     users_db = result.scalars().all()
     return [UserShortRead.model_validate(obj=user_db) for user_db in users_db]
+
+
+@user_router.patch(
+    "/{id}",
+    response_model=UserRead,
+    description="Изменение роли и активности пользователя.",
+)
+async def update_user(
+    id: int,
+    update_in: UserUpdate,
+    session: AsyncSession = Depends(dependency=get_async_session),
+    user_manager: UserManager = Depends(get_user_manager),
+) -> UserRead:
+    target_user = await session.execute(statement=select(User).where(User.id == id))  # type: ignore
+    target_user_db = target_user.scalar_one_or_none()
+    if target_user_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ExceptionDetails.get_not_found_detail(
+                model_name=User.verbose_name(), id=id
+            ),
+        )
+    update_data = update_in.model_dump(exclude_unset=True)
+    if (role := update_data.get("role")) is not None:
+        update_data["is_superuser"] = True if role == RoleEnum.ADMIN else False
+
+    updated_user = await user_manager.update(
+        UserUpdate(**update_data), target_user_db
+    )
+
+    return UserRead.model_validate(updated_user)
+
+
+user_router.include_router(
+    router=fastapi_users.get_users_router(
+        user_schema=UserRead, user_update_schema=UserUpdate
+    ),
+)
 
 
 @user_router.delete(

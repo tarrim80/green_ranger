@@ -14,9 +14,12 @@ USER_FIELDS_CONFIG = {
     "firstname": Field(description="Имя пользователя", examples=["Иван"]),
     "lastname": Field(description="Фамилия пользователя", examples=["Иванов"]),
     "fullname": Field(description="Полное имя", examples=["Иван Иванов"]),
-    "role": Field(description="Роль пользователя. Регулирует права доступа."),
+    "role": Field(description="Роль пользователя. Регулирует права доступа"),
     "team_id": Field(
-        description="Идентификатор команды волонтёров.", examples=[1, 2, 3]
+        description="Идентификатор команды волонтёров", examples=[1, 2, 3]
+    ),
+    "is_active": Field(
+        description="Признак активности пользователя", examples=[True, False]
     ),
 }
 
@@ -55,5 +58,6 @@ class UserShortRead(BaseModel):
     id: Annotated[int, USER_FIELDS_CONFIG["id"]]
     fullname: Annotated[str, USER_FIELDS_CONFIG["fullname"]]
     role: Annotated[RoleEnum, USER_FIELDS_CONFIG["role"]]
+    is_active: Annotated[bool, USER_FIELDS_CONFIG["is_active"]]
 
     model_config = ConfigDict(from_attributes=True)

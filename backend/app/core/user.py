@@ -1,4 +1,4 @@
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from fastapi_users import (
     BaseUserManager,
     FastAPIUsers,
@@ -19,6 +19,9 @@ from app.core.config import settings
 from app.core.db import get_async_session
 from app.models import User
 from app.schemas import UserCreate
+
+from ..schemas.enums import RoleEnum
+from .exceptions import ExceptionDetails
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
@@ -119,3 +122,18 @@ fastapi_users = FastAPIUsers[User, int](
 
 current_user = fastapi_users.current_user(active=True)
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
+
+
+async def get_current_user_admin(
+    user: User = Depends(dependency=current_user),
+) -> User:
+    """
+    Зависимость, которая разрешает доступ только администратору
+    и суперпользователю.
+    """
+    if user.role != RoleEnum.ADMIN or not user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ExceptionDetails.ACCESS_FORBIDDEN,
+        )
+    return user
