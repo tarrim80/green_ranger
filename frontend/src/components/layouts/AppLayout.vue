@@ -51,4 +51,11 @@ const uiStore = useUiStore();
 const handleMapReady = (map) => {
   mapStore.setMapInstance(map);
 };
+
+const params = new URLSearchParams(window.location.search);
+if (params.get("logout") === "1") {
+  authStore.clearAuthData();
+  window.history.replaceState(history.state, "", "/");
+};
+
 </script>

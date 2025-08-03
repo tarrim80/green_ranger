@@ -9,6 +9,7 @@ export const useAuthStore = defineStore("auth", {
     accessToken: localStorage.getItem("accessToken") || null,
     refreshToken: localStorage.getItem("refreshToken") || null,
     currentUser: null,
+    reloadKey: 0,
   }),
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
@@ -100,10 +101,7 @@ export const useAuthStore = defineStore("auth", {
     },
 
     logout() {
-      this.clearAuthData();
-      if (router.currentRoute.value.path !== "/") {
-        router.push("/");
-      }
+      window.location.replace("/?logout=1");
     },
   },
 });
