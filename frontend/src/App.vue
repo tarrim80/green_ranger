@@ -3,6 +3,7 @@
     <router-view />
     <info-dialog />
     <confirm-dialog />
+    <change-password-dialog />
   </v-app>
 </template>
 
@@ -11,6 +12,7 @@ import { onMounted, onBeforeUnmount } from 'vue';
 import SidePanelFormLayout from "@/components/layouts/SidePanelFormLayout.vue";
 import InfoDialog from "@/components/InfoDialog.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog.vue"; 
 import { useUiStore } from "@/stores/uiStore";
 
 const uiStore = useUiStore();

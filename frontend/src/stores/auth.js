@@ -71,18 +71,46 @@ export const useAuthStore = defineStore("auth", {
       localStorage.setItem("accessToken", this.accessToken);
       localStorage.setItem("refreshToken", this.refreshToken);
 
-      await this.fetchCurrentUser();
+      await this.fetchCurrentUser(true);
     },
 
-    async fetchCurrentUser() {
+    async fetchCurrentUser(isLogin = false) {
       if (this.accessToken) {
         try {
           const response = await apiClient.get("/users/me");
           this.currentUser = response.data;
         } catch (error) {
           console.error("Не удалось получить данные пользователя:", error);
-          this.logout();
+          if (!isLogin) {
+            this.logout();
+          } else {
+            throw error;
+          }
         }
+      }
+    },
+
+    async updateUserProfile(profileData) {
+      if (!this.currentUser) return;
+      try {
+        const response = await apiClient.patch("/users/me", profileData);
+        this.currentUser = response.data;
+      } catch (error) {
+        console.error("Ошибка обновления профиля:", error);
+        throw error;
+      }
+    },
+
+    async changePassword(passwordData) {
+      if (!this.currentUser) return;
+      try {
+        await apiClient.patch("/users/me", {
+          password: passwordData.new_password,
+          current_password: passwordData.current_password,
+        });
+      } catch (error) {
+        console.error("Ошибка смены пароля:", error);
+        throw error;
       }
     },
 

@@ -18,6 +18,8 @@ export const useUiStore = defineStore("ui", {
     confirmDialogOnConfirm: () => {},
     confirmDialogOnCancel: () => {},
 
+    isChangePasswordDialogOpen: false,
+
     isFormDirty: false,
   }),
   actions: {
@@ -65,6 +67,14 @@ export const useUiStore = defineStore("ui", {
     triggerCancel() {
       this.confirmDialogOnCancel();
       this.hideConfirmDialog();
+    },
+
+    openChangePasswordDialog() {
+      this.isChangePasswordDialogOpen = true;
+    },
+
+    closeChangePasswordDialog() {
+      this.isChangePasswordDialogOpen = false;
     },
 
     setFormDirty(isDirty) {

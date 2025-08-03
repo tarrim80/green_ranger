@@ -11,6 +11,7 @@ import MapView from "@/views/MapView.vue";
 import TeamsView from "@/views/TeamsView.vue";
 import UsersView from "@/views/UsersView.vue";
 import DefectTypesView from "@/views/DefectTypesView.vue";
+import UserProfileView from "@/views/UserProfileView.vue";
 
 const routes = [
   {
@@ -48,6 +49,12 @@ const routes = [
         name: "DefectTypes",
         component: DefectTypesView,
         meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
+      },
+      {
+        path: "profile",
+        name: "UserProfile",
+        component: UserProfileView,
+        meta: { requiresAuth: true },
       },
     ],
   },

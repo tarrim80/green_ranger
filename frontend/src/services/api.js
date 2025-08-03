@@ -28,7 +28,13 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
     const authStore = useAuthStore();
 
-    if (error.response.status === 401 && !originalRequest._retry) {
+    const isLoginAttempt = originalRequest.url.includes("/auth/jwt/login");
+
+    if (
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      !isLoginAttempt
+    ) {
       originalRequest._retry = true;
 
       if (originalRequest.url.includes("/auth/jwt/refresh")) {
