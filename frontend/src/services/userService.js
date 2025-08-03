@@ -8,4 +8,8 @@ export const userService = {
   registerUser(userData) {
     return apiClient.post("/auth/jwt/register", userData);
   },
+
+  updateUser(id, userData) {
+    return apiClient.patch(`/users/${id}`, userData);
+  },
 };

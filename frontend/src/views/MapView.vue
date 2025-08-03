@@ -1,5 +1,7 @@
 <template>
-  <div></div>
+  <base-map @ready="handleMapReady">
+    <!-- Здесь в будущем будут слоты для маркеров, полигонов и т.д. -->
+  </base-map>
 </template>
 
 <script setup>
@@ -10,6 +12,7 @@ import "@geoman-io/leaflet-geoman-free";
 import { useRoute } from "vue-router";
 import { ref, computed, watch, onUnmounted } from "vue";
 
+import BaseMap from "@/components/BaseMap.vue"; // <-- Добавили импорт BaseMap
 import CreateSectorForm from "@/components/CreateSectorForm.vue";
 
 import { useAuthStore } from "@/stores/auth";
@@ -37,6 +40,11 @@ let currentlyEditingLayer = null;
 let temporaryDrawingLayer = null;
 const isDrawing = ref(false);
 const originalGeometryString = ref(null);
+
+// Эта функция переехала из AppLayout.vue
+const handleMapReady = (map) => {
+  mapStore.setMapInstance(map);
+};
 
 const isManagementMode = computed(() => {
   const userRole = authStore.userRole;
@@ -142,7 +150,7 @@ watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
     }
     await loadSectors();
 
-    if (geoJsonLayer) {
+    if (geoJsonLayer && geoJsonLayer.getBounds().isValid()) {
       const allSectorsBounds = geoJsonLayer.getBounds();
       panAndZoomTo(allSectorsBounds);
     }
@@ -341,4 +349,5 @@ onUnmounted(() => {
   }
   toggleManagementFeatures(false);
 });
+
 </script>

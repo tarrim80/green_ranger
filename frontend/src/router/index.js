@@ -1,4 +1,3 @@
-// ВЕСЬ ФАЙЛ
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/uiStore";
@@ -11,7 +10,6 @@ import MapView from "@/views/MapView.vue";
 import TeamsView from "@/views/TeamsView.vue";
 import UsersView from "@/views/UsersView.vue";
 import DefectTypesView from "@/views/DefectTypesView.vue";
-import UserProfileView from "@/views/UserProfileView.vue";
 
 const routes = [
   {
@@ -22,6 +20,7 @@ const routes = [
         path: "",
         name: "Map",
         component: MapView,
+        meta: { isMapView: true },
       },
       {
         path: "sectors",
@@ -30,31 +29,35 @@ const routes = [
         meta: {
           requiresAuth: true,
           requiredRole: [ROLES.ADMIN, ROLES.CURATOR],
+          isMapView: true,
         },
       },
       {
         path: "teams",
         name: "Teams",
         component: TeamsView,
-        meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
+        meta: {
+          requiresAuth: true,
+          requiredRole: [ROLES.ADMIN],
+        },
       },
       {
         path: "users",
         name: "Users",
         component: UsersView,
-        meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
+        meta: {
+          requiresAuth: true,
+          requiredRole: [ROLES.ADMIN],
+        },
       },
       {
         path: "defect-types",
         name: "DefectTypes",
         component: DefectTypesView,
-        meta: { requiresAuth: true, requiredRole: [ROLES.ADMIN] },
-      },
-      {
-        path: "profile",
-        name: "UserProfile",
-        component: UserProfileView,
-        meta: { requiresAuth: true },
+        meta: {
+          requiresAuth: true,
+          requiredRole: [ROLES.ADMIN],
+        },
       },
     ],
   },
@@ -80,6 +83,10 @@ router.beforeEach((to, from, next) => {
   const uiStore = useUiStore();
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
   const requiredRole = to.meta.requiredRole;
+
+  if (uiStore.isPanelOpen) {
+    uiStore.closePanel();
+  }
 
   if (requiresAuth && !authStore.isAuthenticated) {
     next({ name: "Login" });

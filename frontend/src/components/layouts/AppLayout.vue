@@ -36,40 +36,38 @@
             <user-profile-form @close="toggleProfileView" />
           </div>
         </transition>
-
       </div>
-
     </v-navigation-drawer>
 
     <side-panel-form-layout v-if="uiStore.isPanelOpen" />
 
-    <v-main style="position: relative">
-      <base-map @ready="handleMapReady" />
-      <div style="position: absolute; top: 10px; left: 60px; z-index: 1000">
-        <router-view />
-      </div>
+    <v-main>
+       <router-view v-slot="{ Component, route }">
+        <div v-if="route.meta.isMapView" style="height: 100%; width: 100%;">
+          <component :is="Component" />
+        </div>
+        <v-container fluid v-else>
+          <component :is="Component" />
+        </v-container>
+      </router-view>
     </v-main>
   </v-layout>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useAuthStore } from "@/stores/auth";
-import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { ROLES } from "@/constants/roles";
 
-import BaseMap from "@/components/BaseMap.vue";
 import SidePanelFormLayout from "@/components/layouts/SidePanelFormLayout.vue";
 import UserProfileForm from '@/components/UserProfileForm.vue';
-
 import AdminSidebar from "@/views/sidebars/AdminSidebar.vue";
 import CuratorSidebar from "@/views/sidebars/CuratorSidebar.vue";
 import VolunteerSidebar from "@/views/sidebars/VolunteerSidebar.vue";
 import DefaultSidebar from "@/views/sidebars/DefaultSidebar.vue";
 
 const authStore = useAuthStore();
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 
 const isProfileViewActive = ref(false);
@@ -82,10 +80,6 @@ const toggleProfileView = () => {
     profileTransitionName.value = 'expand';
   }
   isProfileViewActive.value = !isProfileViewActive.value;
-};
-
-const handleMapReady = (map) => {
-  mapStore.setMapInstance(map);
 };
 
 const params = new URLSearchParams(window.location.search);
@@ -103,7 +97,6 @@ if (params.get("logout") === "1") {
 .sidebar-menu {
   transition: opacity 0.3s ease-in-out;
 }
-
 .expand-enter-active, .expand-leave-active {
   transition: all 0.3s ease-in-out;
   overflow: hidden;
@@ -113,10 +106,9 @@ if (params.get("logout") === "1") {
   opacity: 0;
 }
 .expand-enter-to, .expand-leave-from {
-  max-height: 500px; /* Должно быть больше высоты формы */
+  max-height: 500px;
   opacity: 1;
 }
-
 .fade-out-leave-active {
   transition: opacity 0.1s ease;
   position: absolute;

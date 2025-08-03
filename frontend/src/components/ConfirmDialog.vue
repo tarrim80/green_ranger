@@ -6,7 +6,7 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn variant="text" @click="uiStore.triggerCancel">Отмена</v-btn>
-        <v-btn color="primary" variant="flat" @click="uiStore.triggerConfirm">Подтвердить</v-btn>
+        <v-btn color="primary" variant="flat" @click="uiStore.triggerConfirm" class="mr-2 mb-2">Подтвердить</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

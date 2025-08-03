@@ -8,7 +8,7 @@
     ></v-list-item>
     <v-list-item
       prepend-icon="mdi-map-marker-path"
-      title="Управление участками"
+      title="Участки"
       to="/sectors"
     ></v-list-item>
     <v-list-item
