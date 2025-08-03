@@ -16,20 +16,20 @@ SURVEY_FIELDS_CONFIG = {
     "age": Field(
         description="Возраст растения",
         examples=[24, 5],
+        gt=0,
     ),
     "height": Field(
         description="Высота дерева в метрах",
         examples=[5.3],
+        gt=0,
     ),
     "diameter": Field(
         description="Диаметр ствола, в см (на высоте 1,3 м, примерно \
             на высоте плеча)",
         examples=[36],
+        gt=0,
     ),
-    "trunk_count": Field(
-        description="Количество стволов",
-        examples=[1],
-    ),
+    "trunk_count": Field(description="Количество стволов", examples=[1], gt=0),
     "condition": Field(
         description="КСО - Коэффициент состояния объекта (поле выбора)",
         examples=["Угнетенное"],

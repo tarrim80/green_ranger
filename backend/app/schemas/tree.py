@@ -12,11 +12,14 @@ if TYPE_CHECKING:
 TREE_FIELDS_CONFIG = {
     "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
     "planting": Field(
-        description="Вид насаждений", examples=["Одиночное", "Групповое"]
+        description="Вид насаждений",
+        examples=["Одиночное", "Групповое"],
+        max_length=50,
     ),
     "species": Field(
         description="Порода растения",
         examples=["Береза повислая", "Дуб черешчатый"],
+        max_length=50,
     ),
     "description": Field(
         description="Описание растения",
@@ -26,10 +29,13 @@ TREE_FIELDS_CONFIG = {
     "azimuth": Field(
         description="Азимут от точки привязки до растения в градусах",
         examples=[180.5],
+        ge=0,
+        lt=360,
     ),
     "distance": Field(
         description="Расстояние от точки привязки до растения в метрах",
         examples=[15.2],
+        gt=0,
     ),
     "sector_id": Field(
         description="ID учетного участка, к которому привязано растение",

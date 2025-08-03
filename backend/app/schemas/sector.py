@@ -15,10 +15,12 @@ SECTOR_FIELDS_CONFIG = {
     "name": Field(
         description="Название (номер) учетного участка",
         examples=["Участок 1", "Участок степных растений"],
+        max_length=50,
     ),
     "color": Field(
         description="Цвет границы участка на карте в hex формате",
         examples=["#0F3BEB", "#FF2503"],
+        pattern=r"^#[0-9a-fA-F]{6}$",
     ),
     "geometry": Field(
         description="Полигон - границы участка",

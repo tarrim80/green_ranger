@@ -11,8 +11,12 @@ USER_FIELDS_CONFIG = {
         description="Уникальный идентификатор в телеграмм",
         examples=[1, 2, 3],
     ),
-    "firstname": Field(description="Имя пользователя", examples=["Иван"]),
-    "lastname": Field(description="Фамилия пользователя", examples=["Иванов"]),
+    "firstname": Field(
+        description="Имя пользователя", examples=["Иван"], max_length=100
+    ),
+    "lastname": Field(
+        description="Фамилия пользователя", examples=["Иванов"], max_length=100
+    ),
     "fullname": Field(description="Полное имя", examples=["Иван Иванов"]),
     "role": Field(description="Роль пользователя. Регулирует права доступа"),
     "team_id": Field(

@@ -10,6 +10,7 @@ TEAM_FIELDS_CONFIG = {
     "name": Field(
         description="Название команды (по умолчанию по фамилии лидера)",
         examples=["Команда Петрова", "Команда Ахметовой"],
+        max_length=50,
     ),
     "leader_id": Field(
         description="Идентификатор ID лидера (бригадира) команды",
