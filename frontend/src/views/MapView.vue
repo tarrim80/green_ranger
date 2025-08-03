@@ -16,6 +16,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/uiStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useSectorsMap } from "@/composables/useSectorsMap";
+import { useMapLayout } from "@/composables/useMapLayout";
 import { ROLES } from "@/constants/roles";
 import { userService } from "@/services/userService";
 import { teamService } from "@/services/teamService";
@@ -27,6 +28,7 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
 const { sectors, loadSectors, geoJsonStyle } = useSectorsMap();
+const { panAndZoomTo } = useMapLayout();
 
 let geoJsonLayer = null;
 const curatorList = ref([]);
@@ -87,6 +89,18 @@ const toggleManagementFeatures = (enable) => {
   }
 };
 
+const dynamicStyle = computed(() => {
+  const fillOpacity = isManagementMode.value ? 0.8 : 0.3;
+
+  return (feature) => ({
+    color: feature.properties.color,
+    weight: 2,
+    opacity: 1,
+    fillOpacity: fillOpacity,
+  });
+});
+
+
 watch(isManagementMode, (newValue) => {
   toggleManagementFeatures(newValue);
 });
@@ -95,15 +109,16 @@ watch(sectors, (newSectorsData) => {
   if (geoJsonLayer) {
     geoJsonLayer.clearLayers();
     geoJsonLayer.addData(newSectorsData);
+    geoJsonLayer.setStyle(dynamicStyle.value); 
   }
 });
 
 watch(
   () => mapStore.mapInstance,
   async (newMapInstance) => {
-    if (newMapInstance) {
+    if (newMapInstance && !geoJsonLayer) {
       geoJsonLayer = L.geoJSON(null, {
-        style: geoJsonStyle,
+        style: dynamicStyle.value,
         onEachFeature: onEachFeature,
       }).addTo(newMapInstance);
 
@@ -115,7 +130,7 @@ watch(
 );
 
 watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
-  if (wasOpen && !isOpen) {
+   if (wasOpen && !isOpen) {
     if (currentlyEditingLayer) {
       currentlyEditingLayer.pm.disable();
       currentlyEditingLayer = null;
@@ -129,13 +144,14 @@ watch(() => uiStore.isPanelOpen, async (isOpen, wasOpen) => {
 
     if (geoJsonLayer) {
       const allSectorsBounds = geoJsonLayer.getBounds();
-      if (allSectorsBounds.isValid()) {
-        const currentMapViewBounds = mapStore.mapInstance.getBounds();
-        if (!currentMapViewBounds.contains(allSectorsBounds)) {
-          mapStore.mapInstance.fitBounds(allSectorsBounds);
-        }
-      }
+      panAndZoomTo(allSectorsBounds);
     }
+  }
+});
+
+watch(dynamicStyle, (newStyleFunction) => {
+  if (geoJsonLayer) {
+    geoJsonLayer.setStyle(newStyleFunction);
   }
 });
 
@@ -185,33 +201,32 @@ const handleLayerClick = (layer) => {
   }
 };
 
-const startEditing = (layer) => {
+const startEditing = async (layer) => {
   if (currentlyEditingLayer) {
     currentlyEditingLayer.pm.disable();
   }
   currentlyEditingLayer = layer;
   originalGeometryString.value = JSON.stringify(layer.toGeoJSON().geometry);
-
-  mapStore.mapInstance.fitBounds(layer.getBounds());
-
-  mapStore.mapInstance.once("moveend", async () => {
-    layer.pm.enable({ allowSelfIntersection: false });
-
-    await fetchFormData();
-    const feature = layer.feature;
-    const sectorData = sectors.value.features.find(
-      (f) => f.properties.id === feature.properties.id
-    ).properties;
-    const props = {
-      sectorData,
-      curators: curatorList.value,
-      teams: teamList.value,
-      showCuratorSelection: isCurrentUserAdmin.value,
-      preselectedCuratorId: currentUserId.value,
-      onSave: handleSave,
-    };
-    uiStore.openPanel(CreateSectorForm, "Редактирование участка", props);
-  });
+  await fetchFormData();
+  const feature = layer.feature;
+  const sectorData = sectors.value.features.find(
+    (f) => f.properties.id === feature.properties.id
+  ).properties;
+  const props = {
+    sectorData,
+    curators: curatorList.value,
+    teams: teamList.value,
+    showCuratorSelection: isCurrentUserAdmin.value,
+    preselectedCuratorId: currentUserId.value,
+    onSave: handleSave,
+  };
+  
+  uiStore.openPanel(CreateSectorForm, "Редактирование участка", props);
+  
+  setTimeout(() => {
+    panAndZoomTo(currentlyEditingLayer.getBounds());
+  }, 300);
+  layer.pm.enable({ allowSelfIntersection: false });
 };
 
 const fetchFormData = async () => {
@@ -232,7 +247,7 @@ const fetchFormData = async () => {
       teamsPromise,
     ]);
     curatorList.value = usersResponse.data.filter(
-      (user) => user.role === ROLES.CURATOR || user.role === ROLES.ADMIN
+      (user) => user.role === ROLES.CURATOR
     );
     teamList.value = teamsResponse.data;
   } catch (error) {
@@ -245,25 +260,26 @@ const onDrawEnd = () => (isDrawing.value = false);
 
 const onCreate = async (e) => {
   temporaryDrawingLayer = e.layer;
-  mapStore.mapInstance.fitBounds(e.layer.getBounds());
+  
+  const existingColors = sectors.value.features.map(
+    (f) => f.properties.color
+  );
+  const newColor = generateUniqueRandomColor(existingColors);
+  await fetchFormData();
+  const props = {
+    geometry: e.layer.toGeoJSON().geometry,
+    curators: curatorList.value,
+    teams: teamList.value,
+    showCuratorSelection: isCurrentUserAdmin.value,
+    preselectedCuratorId: currentUserId.value,
+    initialColor: newColor,
+    onSave: handleSave,
+  };
+  uiStore.openPanel(CreateSectorForm, "Создание участка", props);
+  setTimeout(() => {
+    panAndZoomTo(e.layer.getBounds());
+  }, 300);
 
-  mapStore.mapInstance.once("moveend", async () => {
-    const existingColors = sectors.value.features.map(
-      (f) => f.properties.color
-    );
-    const newColor = generateUniqueRandomColor(existingColors);
-    await fetchFormData();
-    const props = {
-      geometry: e.layer.toGeoJSON().geometry,
-      curators: curatorList.value,
-      teams: teamList.value,
-      showCuratorSelection: isCurrentUserAdmin.value,
-      preselectedCuratorId: currentUserId.value,
-      initialColor: newColor,
-      onSave: handleSave,
-    };
-    uiStore.openPanel(CreateSectorForm, "Создание участка", props);
-  });
 };
 
 const onRemove = (e) => {
