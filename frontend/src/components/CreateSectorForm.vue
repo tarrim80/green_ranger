@@ -66,6 +66,14 @@
       </v-row>
     </v-container>
     <v-card-actions>
+      <v-btn
+        v-if="props.sectorData && props.canDelete"
+        color="error"
+        variant="text"
+        @click="triggerDelete"
+      >
+        Удалить
+      </v-btn>
       <v-spacer></v-spacer>
       <v-btn variant="text" @click="cancel">Отмена</v-btn>
       <v-btn color="primary" variant="flat" type="submit">Сохранить</v-btn>
@@ -82,10 +90,12 @@ const props = defineProps({
   teams: { type: Array, default: () => [] },
   geometry: { type: Object, default: null },
   showCuratorSelection: { type: Boolean, default: true },
+  canDelete: { type: Boolean, default: false },
   preselectedCuratorId: { type: Number, default: null },
   sectorData: { type: Object, default: null },
   initialColor: { type: String, default: "#1DE9B6" },
   onSave: { type: Function, required: true },
+  onDelete: { type: Function, required: false },
 });
 
 const uiStore = useUiStore();
@@ -142,6 +152,12 @@ watch(
 
 const cancel = () => {
   uiStore.closePanel();
+};
+
+const triggerDelete = () => {
+  if (props.onDelete && props.sectorData) {
+    props.onDelete(props.sectorData);
+  }
 };
 
 const saveSector = async () => {
