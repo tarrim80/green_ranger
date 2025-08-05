@@ -1,21 +1,20 @@
-import { ref } from "vue";
-import { sectorService } from "@/services/sectorService";
+import { computed } from "vue";
+import { useSectorStore } from "@/stores/sectorStore";
 
 export function useSectorsMap() {
-  const sectors = ref({ type: "FeatureCollection", features: [] });
+  const sectorStore = useSectorStore();
 
-  const loadSectors = async () => {
-    try {
-      const response = await sectorService.getSectors();
-      const features = response.data.map((sector) => ({
-        type: "Feature",
-        properties: { ...sector },
-        geometry: sector.geometry,
-      }));
-      sectors.value = { type: "FeatureCollection", features: features };
-    } catch (error) {
-      console.error("Ошибка при загрузке участков:", error);
-    }
+  const sectorsAsGeoJSON = computed(() => {
+    const features = sectorStore.getSectors.map((sector) => ({
+      type: "Feature",
+      properties: { ...sector },
+      geometry: sector.geometry,
+    }));
+    return { type: "FeatureCollection", features: features };
+  });
+
+  const refreshSectors = async () => {
+    await sectorStore.refreshSectors();
   };
 
   const geoJsonStyle = (feature) => ({
@@ -26,8 +25,8 @@ export function useSectorsMap() {
   });
 
   return {
-    sectors,
-    loadSectors,
+    sectorsAsGeoJSON,
+    refreshSectors,
     geoJsonStyle,
   };
 }

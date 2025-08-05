@@ -2,6 +2,9 @@ import { defineStore } from "pinia";
 import apiClient from "@/services/api";
 import router from "@/router";
 import { useUiStore } from "./uiStore";
+import { useUserStore } from "./userStore";
+import { useSectorStore } from "./sectorStore";
+import { useTeamStore } from "./teamStore";
 import { userService } from "@/services/userService";
 
 export const useAuthStore = defineStore("auth", {
@@ -9,7 +12,7 @@ export const useAuthStore = defineStore("auth", {
     accessToken: localStorage.getItem("accessToken") || null,
     refreshToken: localStorage.getItem("refreshToken") || null,
     currentUser: null,
-    reloadKey: 0,
+    storesInitialized: false,
   }),
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
@@ -79,6 +82,10 @@ export const useAuthStore = defineStore("auth", {
         try {
           const response = await apiClient.get("/users/me");
           this.currentUser = response.data;
+          if (!this.storesInitialized) {
+            await this.initializeStores();
+            this.storesInitialized = true;
+          }
         } catch (error) {
           console.error("Не удалось получить данные пользователя:", error);
           if (!isLogin) {
@@ -90,11 +97,25 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    async initializeStores() {
+      const userStore = useUserStore();
+      const sectorStore = useSectorStore();
+      const teamStore = useTeamStore();
+
+      await Promise.all([
+        userStore.fetchUsers(),
+        sectorStore.fetchSectors(),
+        teamStore.fetchTeams(),
+      ]);
+    },
+
     async updateUserProfile(profileData) {
       if (!this.currentUser) return;
       try {
+        const userStore = useUserStore();
         const response = await apiClient.patch("/users/me", profileData);
         this.currentUser = response.data;
+        await userStore.refreshUsers();
       } catch (error) {
         console.error("Ошибка обновления профиля:", error);
         throw error;
@@ -120,12 +141,19 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    clearStores() {
+      useUserStore().users = [];
+      useTeamStore().teams = [];
+      this.storesInitialized = false;
+    },
+
     clearAuthData() {
       this.accessToken = null;
       this.refreshToken = null;
       this.currentUser = null;
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
+      this.clearStores();
     },
 
     logout() {
