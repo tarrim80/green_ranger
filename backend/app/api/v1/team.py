@@ -59,6 +59,16 @@ async def create_team(
     try:
         team_db = await service.create_team(team_in=team_in)
         return TeamRead.model_validate(obj=team_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except NotAllowedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            detail=str(e),
+        ) from e
     except TeamCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

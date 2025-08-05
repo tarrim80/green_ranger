@@ -67,14 +67,18 @@ class TeamService:
                 new_team = Team(**team_data)
                 self.repo.session.add(instance=new_team)
                 await self.repo.session.flush()
-                for user in members:
-                    setattr(user, "team_id", new_team.id)
-                    self.repo.session.add(instance=user)
+                for member in members:
+                    if member.role != RoleEnum.VOLUNTEER:
+                        raise NotAllowedError(
+                            ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
+                        )
+                    setattr(member, "team_id", new_team.id)
+                    self.repo.session.add(instance=member)
                 await self.repo.session.refresh(
                     instance=new_team, attribute_names=["members", "leader"]
                 )
             return new_team
-        except NotFoundError:
+        except (NotFoundError, NotAllowedError) as e:
             raise
         except Exception as e:
             if isinstance(e, IntegrityError):
@@ -121,7 +125,7 @@ class TeamService:
                 await self.repo.session.flush()
                 await self.repo.session.refresh(instance=team_updated)
             return team_updated
-        except (ValueError, NotFoundError):
+        except (ValueError, NotFoundError) as e:
             raise
         except Exception as e:
             if isinstance(e, IntegrityError):
@@ -157,9 +161,7 @@ class TeamService:
                     setattr(team.members[0], "team_id", None)
                     self.repo.session.add(instance=team.members[0])
                 await self.repo.remove(id=team_id)
-        except NotFoundError as e:
-            raise
-        except NotAllowedError as e:
+        except (NotFoundError, NotAllowedError) as e:
             raise
         except Exception as e:
             raise TeamRemovingError(
@@ -215,7 +217,7 @@ class TeamService:
                 instance=team_db, attribute_names=["members", "leader"]
             )
             return team_db
-        except (NotAllowedError, NotFoundError):
+        except (NotAllowedError, NotFoundError) as e:
             raise
         except Exception as e:
             raise TeamCreationError(
