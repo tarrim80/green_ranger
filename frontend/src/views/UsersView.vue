@@ -2,7 +2,7 @@
   <div>
     <v-row>
       <v-col>
-        <h2 class="text-h4 mb-4">Пользователи</h2>
+        <h2 class="text-h5">Пользователи</h2>
       </v-col>
     </v-row>
     <v-row>
@@ -49,16 +49,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { userService } from '@/services/userService';
+import { computed, onMounted } from 'vue';
 import { useUiStore } from '@/stores/uiStore';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/authStore';
+import { useUserStore } from '@/stores/userStore';
 import UserEditForm from '@/components/UserEditForm.vue';
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
-const users = ref([]);
-const loading = ref(true);
+const userStore = useUserStore();
+
+const users = computed(() => {
+  return userStore.getUsers.filter(user => user.id !== authStore.currentUser.id);
+});
+const loading = computed(() => userStore.loading);
 
 const headers = [
   { title: 'Полное имя', key: 'fullname', sortable: true },
@@ -73,23 +77,10 @@ const rowProps = ({ item }) => {
   };
 };
 
-const fetchData = async () => {
-  loading.value = true;
-  try {
-    const response = await userService.getAllUsers();
-    users.value = response.data.filter(user => user.id !== authStore.currentUser.id);
-  } catch (error) {
-    uiStore.showInfoDialog('Ошибка', 'Не удалось загрузить список пользователей.');
-  } finally {
-    loading.value = false;
-  }
-};
-
 const handleSave = async (userData) => {
   try {
-    await userService.updateUser(userData.id, { role: userData.role });
+    await userStore.updateUser(userData.id, { role: userData.role });
     uiStore.closePanel();
-    await fetchData();
   } catch (error) {
     const errorDetail = error.response?.data?.detail || "Произошла ошибка";
     uiStore.showInfoDialog('Ошибка сохранения', errorDetail);
@@ -111,8 +102,7 @@ const toggleUserStatus = (user) => {
     text: `Вы уверены, что хотите ${actionText} пользователя ${user.fullname}?`,
     onConfirm: async () => {
       try {
-        await userService.updateUser(user.id, { is_active: !user.is_active });
-        await fetchData();
+        await userStore.updateUser(user.id, { is_active: !user.is_active });
       } catch (error) {
         const errorDetail = error.response?.data?.detail || "Произошла ошибка";
         uiStore.showInfoDialog('Ошибка', errorDetail);
@@ -121,8 +111,9 @@ const toggleUserStatus = (user) => {
   });
 };
 
-onMounted(fetchData);
-</script>
+onMounted(() => {
+  userStore.fetchUsers();
+});</script>
 
 <style>
 .inactive-user-row {
