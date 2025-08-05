@@ -14,11 +14,11 @@ from app.core.transaction_manager import atomic_transaction
 from app.models import Team
 from app.repositories.team import TeamRepository
 from app.repositories.user import UserRepository
-from app.schemas import TeamCreate, TeamUpdate
+from app.schemas import RoleEnum, TeamCreate, TeamUpdate
 from app.services.mixins import DeleteObjMixin
 
 
-class TeamService(DeleteObjMixin):
+class TeamService:
     """Сервисный слой для управления командами волонтёров."""
 
     def __init__(
@@ -143,11 +143,20 @@ class TeamService(DeleteObjMixin):
                         id=team_id,
                     )
                 )
-            if team.members:
+            if len(team.members) > 1:
                 raise NotAllowedError(
                     ExceptionDetails.NOT_ALLOWED_REMOVE_TEAM_WITH_USERS
                 )
-            await self.delete_obj(obj_id=team_id)
+            if len(team.members) == 1:
+                if team.members[0].id != team.leader_id:
+                    raise NotAllowedError(
+                        ExceptionDetails.NOT_ALLOWED_REMOVE_TEAM_IF_USER_NOT_LEADER
+                    )
+            async with atomic_transaction(self.repo.session):
+                if team.members:
+                    setattr(team.members[0], "team_id", None)
+                    self.repo.session.add(instance=team.members[0])
+                await self.repo.remove(id=team_id)
         except NotFoundError as e:
             raise
         except NotAllowedError as e:
@@ -157,10 +166,9 @@ class TeamService(DeleteObjMixin):
                 f"{ExceptionDetails.FAILED_REMOVE_RECORD}: {e}"
             ) from e
 
-    async def add_members(self, team_id: int, member_ids: list[int]) -> Team:
-        """Добавляет новых участников в команду."""
+    async def sync_members(self, team_id: int, member_ids: list[int]) -> Team:
+        """Добавляет новых участников в команду и удаляет исключенных."""
         try:
-            member_ids = list(set(member_ids))
             team_db = await self.repo.get(id=team_id)
             if not team_db:
                 raise NotFoundError(
@@ -168,22 +176,41 @@ class TeamService(DeleteObjMixin):
                         model_name=self.repo.model.verbose_name(), id=team_id
                     )
                 )
-            members = await self.user_repo.get_by_ids(ids=member_ids)
-            if len(members) != len(member_ids):
-                raise NotFoundError(ExceptionDetails.NOT_FOUND_SOME_USERS)
-            members_to_add = []
-            for member in members:
-                if member.team_id is not None:
-                    if member in team_db.members:
-                        continue
-                    raise NotAllowedError(
-                        ExceptionDetails.NOT_ALLOWED_ADD_OTHER_TEAM
-                    )
-                members_to_add.append(member)
+            new_member_ids_set = set(member_ids)
+            current_member_ids_set = {member.id for member in team_db.members}
+            ids_to_add = new_member_ids_set - current_member_ids_set
+            ids_to_remove = current_member_ids_set - new_member_ids_set
+            if team_db.leader_id in ids_to_remove:
+                raise NotAllowedError(
+                    ExceptionDetails.NOT_ALLOWED_REMOVE_LEADER_TEAM
+                )
             async with atomic_transaction(session=self.repo.session):
-                for member in members_to_add:
-                    setattr(member, "team_id", team_id)
-                    self.repo.session.add(instance=member)
+                if ids_to_add:
+                    members_to_add = await self.user_repo.get_by_ids(
+                        ids=list(ids_to_add)
+                    )
+                    if len(members_to_add) != len(ids_to_add):
+                        raise NotFoundError(
+                            ExceptionDetails.NOT_FOUND_SOME_USERS
+                        )
+                    for member in members_to_add:
+                        if member.role != RoleEnum.VOLUNTEER:
+                            raise NotAllowedError(
+                                ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
+                            )
+                        if member.team_id is not None:
+                            raise NotAllowedError(
+                                ExceptionDetails.NOT_ALLOWED_ADD_OTHER_TEAM
+                            )
+                        setattr(member, "team_id", team_id)
+                        self.repo.session.add(instance=member)
+                if ids_to_remove:
+                    members_to_remove = await self.user_repo.get_by_ids(
+                        ids=list(ids_to_remove)
+                    )
+                    for member in members_to_remove:
+                        setattr(member, "team_id", None)
+                        self.repo.session.add(instance=member)
             await self.repo.session.refresh(
                 instance=team_db, attribute_names=["members", "leader"]
             )
@@ -193,38 +220,4 @@ class TeamService(DeleteObjMixin):
         except Exception as e:
             raise TeamCreationError(
                 f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
-            ) from e
-
-    async def remove_members(
-        self, team_id: int, member_ids: list[int]
-    ) -> Team:
-        """Исключает участников из команды."""
-        try:
-            member_ids = list(set(member_ids))
-            team_db = await self.repo.get(id=team_id)
-            if not team_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(), id=team_id
-                    )
-                )
-            if team_db.leader_id in member_ids:
-                raise NotAllowedError(
-                    ExceptionDetails.NOT_ALLOWED_REMOVE_LEADER_TEAM
-                )
-            async with atomic_transaction(session=self.repo.session):
-                for member in team_db.members:
-                    if member.id not in member_ids:
-                        continue
-                    setattr(member, "team_id", None)
-                    self.repo.session.add(instance=member)
-            await self.repo.session.refresh(
-                instance=team_db, attribute_names=["members", "leader"]
-            )
-            return team_db
-        except (NotAllowedError, NotFoundError):
-            raise
-        except Exception as e:
-            raise TeamRemovingError(
-                f"{ExceptionDetails.FAILED_REMOVE_RECORD}: {e}"
             ) from e

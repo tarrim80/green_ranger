@@ -99,23 +99,22 @@ async def update_team(
 
 
 @router.post(
-    path="/{team_id}/members",
+    path="/{team_id}/sync_members",
     status_code=status.HTTP_200_OK,
     response_model=TeamRead,
-    summary="Добаление в команду волонтеров",
-    description="Добавляет в команду с идентификатором (id) одного \
-        или нескольких волонтеровю",
+    summary="Синхронизация списка влонтёров",
+    description="Добавляет новых участников команды и удаляет исключенных.",
     dependencies=[
         Depends(dependency=permission_dependency(permission=IsAdmin))
     ],
 )
-async def add_members_to_team(
+async def sync_team_members(
     team_id: int,
     member_ids: list[int] = Body(..., embed=True),
     service: TeamService = Depends(),
 ) -> TeamRead:
     try:
-        team_db = await service.add_members(
+        team_db = await service.sync_members(
             team_id=team_id, member_ids=member_ids
         )
         return TeamRead.model_validate(team_db)
@@ -130,44 +129,6 @@ async def add_members_to_team(
             detail=str(e),
         ) from e
     except TeamCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
-
-
-@router.delete(
-    path="/{team_id}/members",
-    status_code=status.HTTP_200_OK,
-    response_model=TeamRead,
-    summary="Исключение волонтеров из команды",
-    description="Исключает из команды с идентификатором (id) одного \
-        или нескольких волонтеров.",
-    dependencies=[
-        Depends(dependency=permission_dependency(permission=IsAdmin))
-    ],
-)
-async def remove_members_from_team(
-    team_id: int,
-    member_ids: list[int] = Body(..., embed=True),
-    service: TeamService = Depends(),
-) -> TeamRead:
-    try:
-        team_db = await service.remove_members(
-            team_id=team_id, member_ids=member_ids
-        )
-        return TeamRead.model_validate(team_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        ) from e
-    except TeamRemovingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
