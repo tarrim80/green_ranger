@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
-from app.models import Sector
+from app.models import Sector, Team
 from app.repositories.base import BaseRepository
 from app.schemas import SectorCreate, SectorUpdate
 
@@ -31,7 +31,7 @@ class SectorRepository(BaseRepository[Sector, SectorCreate, SectorUpdate]):
             statement=select(self.model)
             .options(selectinload(self.model.trees))
             .options(selectinload(self.model.curator))
-            .options(selectinload(self.model.team))
+            .options(selectinload(self.model.team).selectinload(Team.leader))
             .where(self.model.id == id)
         )
         return result.scalar_one_or_none()
@@ -44,7 +44,7 @@ class SectorRepository(BaseRepository[Sector, SectorCreate, SectorUpdate]):
             statement=select(self.model)
             .options(selectinload(self.model.trees))
             .options(selectinload(self.model.curator))
-            .options(selectinload(self.model.team))
+            .options(selectinload(self.model.team).selectinload(Team.leader))
             .offset(offset=skip)
             .limit(limit=limit)
         )
