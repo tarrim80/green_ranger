@@ -198,6 +198,7 @@ class ExceptionDetails:
     INVALID_USERNAME_OR_PASSWORD = "Неверное имя пользователя или пароль"
     NO_RIGHT_FOR_ACTION = "Нет прав для этого действия"
     NOT_ALLOWED_ADD_OTHER_TEAM = "Невозможно добавить в команду пользователя, состоящего в другой команде. Сначала исключите из другой команды."
+    NOT_ALLOWED_ADD_NO_VOLUNTEER = 'Невозможно добавить в команду пользователя,  с ролью, отличной от "Волонтёр".'
     NOT_ALLOWED_REMOVE_SECTOR_WITH_TREES = (
         "Невозможно удалить участок, на котором зарегистрированы растения"
     )
@@ -206,6 +207,9 @@ class ExceptionDetails:
     )
     NOT_ALLOWED_REMOVE_TEAM_WITH_USERS = (
         "Невозможно удалить команду, к которой прикреплены волонтеры"
+    )
+    NOT_ALLOWED_REMOVE_TEAM_IF_USER_NOT_LEADER = (
+        "Невозможно удалить команду, если единственный участник не лидер"
     )
 
     NOT_ALLOWED_REMOVE_TREES = 'Не удаляйте растение. Установите состояние "Растение удалено" или "Погибшее"'
