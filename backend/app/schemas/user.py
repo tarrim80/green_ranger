@@ -63,5 +63,6 @@ class UserShortRead(BaseModel):
     fullname: Annotated[str, USER_FIELDS_CONFIG["fullname"]]
     role: Annotated[RoleEnum, USER_FIELDS_CONFIG["role"]]
     is_active: Annotated[bool, USER_FIELDS_CONFIG["is_active"]]
+    team_id: Annotated[int | None, USER_FIELDS_CONFIG["team_id"]]
 
     model_config = ConfigDict(from_attributes=True)
