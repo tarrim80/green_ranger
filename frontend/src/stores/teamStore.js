@@ -39,7 +39,10 @@ export const useTeamStore = defineStore("team", {
       return teamService.createTeam(teamData);
     },
     async updateTeam(id, teamData) {
-      return teamService.updateTeam(id, teamData);
+      const updateTeamDetails = teamService.updateTeam(id, teamData);
+      const syncMembers = teamService.syncTeamMembers(id, teamData.member_ids);
+
+      await Promise.all([updateTeamDetails, syncMembers]);
     },
     async deleteTeam(id) {
       return teamService.deleteTeam(id);
