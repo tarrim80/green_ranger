@@ -8,7 +8,7 @@ from app.schemas.user import UserShortRead
 TEAM_FIELDS_CONFIG = {
     "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
     "name": Field(
-        description="Название команды (по умолчанию по фамилии лидера)",
+        description="Название команды",
         examples=["Команда Петрова", "Команда Ахметовой"],
         max_length=50,
     ),
@@ -34,7 +34,7 @@ TEAM_FIELDS_CONFIG = {
 class TeamBase(BaseModel):
     """Базовая схема для команды."""
 
-    name: Annotated[str | None, TEAM_FIELDS_CONFIG["name"]] = None
+    name: Annotated[str, TEAM_FIELDS_CONFIG["name"]]
     leader_id: Annotated[int, TEAM_FIELDS_CONFIG["leader_id"]]
     member_ids: Annotated[list[int], TEAM_FIELDS_CONFIG["member_ids"]]
 
