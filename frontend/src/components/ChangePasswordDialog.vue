@@ -47,7 +47,7 @@
 <script setup>
 import { ref, reactive, watch } from 'vue';
 import { useUiStore } from '@/stores/uiStore';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/authStore';
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();

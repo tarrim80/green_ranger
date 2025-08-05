@@ -53,7 +53,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 
 const emit = defineEmits(['close']);

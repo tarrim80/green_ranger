@@ -56,7 +56,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { ROLES } from "@/constants/roles";
 
