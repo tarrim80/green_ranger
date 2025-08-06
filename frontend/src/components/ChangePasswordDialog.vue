@@ -34,7 +34,7 @@
             required
           ></v-text-field>
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions class="px-4">
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="uiStore.closeChangePasswordDialog">Отмена</v-btn>
           <v-btn color="primary" variant="flat" type="submit" :loading="loading">Сменить пароль</v-btn>

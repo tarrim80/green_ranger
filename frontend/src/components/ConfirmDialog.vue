@@ -3,7 +3,7 @@
     <v-card>
       <v-card-title class="text-h5">{{ uiStore.confirmDialogTitle }}</v-card-title>
       <v-card-text>{{ uiStore.confirmDialogText }}</v-card-text>
-      <v-card-actions>
+      <v-card-actions class="px-4">
         <v-spacer></v-spacer>
         <v-btn variant="text" @click="uiStore.triggerCancel">Отмена</v-btn>
         <v-btn color="primary" variant="flat" @click="uiStore.triggerConfirm" class="mr-2 mb-2">Подтвердить</v-btn>

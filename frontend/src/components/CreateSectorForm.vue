@@ -65,7 +65,7 @@
         </v-col>
       </v-row>
     </v-container>
-    <v-card-actions>
+    <v-card-actions class="px-4">
       <v-btn
         v-if="props.sectorData && props.canDelete"
         color="error"

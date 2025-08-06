@@ -3,7 +3,7 @@
     <v-card>
       <v-card-title class="text-h5">{{ uiStore.infoDialogTitle }}</v-card-title>
       <v-card-text>{{ uiStore.infoDialogText }}</v-card-text>
-      <v-card-actions>
+      <v-card-actions class="px-4">
         <v-spacer></v-spacer>
         <v-btn color="primary" variant="flat" @click="uiStore.hideInfoDialog">ОК</v-btn>
       </v-card-actions>

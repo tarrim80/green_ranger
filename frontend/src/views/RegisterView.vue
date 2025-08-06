@@ -49,7 +49,7 @@
                 required
               ></v-text-field>
             </v-card-text>
-            <v-card-actions>
+            <v-card-actions class="px-4">
               <v-btn to="/login" variant="text">Уже есть аккаунт?</v-btn>
               <v-spacer></v-spacer>
               <v-btn color="primary" type="submit">Зарегистрироваться</v-btn>

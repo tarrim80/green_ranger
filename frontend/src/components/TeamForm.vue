@@ -61,7 +61,7 @@
         </v-col>
       </v-row>
     </v-container>
-    <v-card-actions>
+    <v-card-actions class="px-4">
       <v-spacer></v-spacer>
       <v-btn variant="text" @click="uiStore.closePanel()">Отмена</v-btn>
       <v-btn color="primary" variant="flat" type="submit">Сохранить</v-btn>

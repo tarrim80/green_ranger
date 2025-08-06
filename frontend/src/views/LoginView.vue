@@ -26,7 +26,7 @@
                 required
               ></v-text-field>
             </v-card-text>
-            <v-card-actions>
+            <v-card-actions class="px-4">
               <v-btn to="/register" variant="text">Создать аккаунт</v-btn>
               <v-spacer></v-spacer>
               <v-btn color="primary" type="submit">Войти</v-btn>
