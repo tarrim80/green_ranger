@@ -60,10 +60,16 @@ class SectorService(DeleteObjMixin):
                 new_sector = self.repo.model(**sector_data)
                 self.repo.session.add(instance=new_sector)
                 await self.repo.session.flush()
-                await self.repo.session.refresh(
-                    instance=new_sector, attribute_names=["curator", "team"]
+            new_sector_id = new_sector.id
+            fully_loaded_sector = await self.repo.get(id=new_sector_id)
+            if not fully_loaded_sector:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name,
+                        id=new_sector_id,
+                    )
                 )
-            return new_sector
+            return fully_loaded_sector
         except IntegrityError as e:
             raise SectorCreationError(
                 ExceptionDetails.ALREADY_EXIST_SECTOR_NAME
