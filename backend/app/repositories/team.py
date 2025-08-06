@@ -30,6 +30,7 @@ class TeamRepository(BaseRepository[Team, TeamCreate, TeamUpdate]):
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.members))
+            .options(selectinload(self.model.leader))
             .where(self.model.id == id)
         )
         return result.scalar_one_or_none()
@@ -41,6 +42,7 @@ class TeamRepository(BaseRepository[Team, TeamCreate, TeamUpdate]):
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.members))
+            .options(selectinload(self.model.leader))
             .offset(offset=skip)
             .limit(limit=limit)
         )
