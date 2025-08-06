@@ -76,6 +76,7 @@ class SurveyService(UpdateObjMixin):
                 for photo_data in photos_data:
                     new_data = {
                         "file_path": photo_data["file_path"],
+                        "thumbnail_path": photo_data["thumbnail_path"],
                         "survey_id": new_survey.id,
                     }
                     new_photo = Photo(**new_data)
@@ -128,22 +129,24 @@ class SurveyService(UpdateObjMixin):
         """
         Подготавливает обследование и все связанные с ним данные к удалению.
         """
-        photos_to_delete = []
+        paths_photo_to_delete = []
         for survey_defect in survey_db.survey_defects:
-            defect_photos_to_delete = (
+            path_defect_photo_to_delete = (
                 await self.defect_service._stage_deletion(
                     defect_db=survey_defect
                 )
             )
-            if defect_photos_to_delete:
-                photos_to_delete.extend(defect_photos_to_delete)
+            if path_defect_photo_to_delete:
+                paths_photo_to_delete.extend(path_defect_photo_to_delete)
         for tree_photo in survey_db.tree_photos:
-            tree_photo_to_delete = await self.photo_service._stage_deletion(
-                photo_id=tree_photo.id
+            paths_tree_photo_to_delete = (
+                await self.photo_service._stage_deletion(
+                    photo_id=tree_photo.id
+                )
             )
-            photos_to_delete.append(tree_photo_to_delete)
+            paths_photo_to_delete.extend(paths_tree_photo_to_delete)
         await self.repo.remove(id=survey_db.id)
-        return photos_to_delete
+        return paths_photo_to_delete
 
     async def delete_with_photos(self, survey_id: int, user: User) -> None:
         """
@@ -165,11 +168,11 @@ class SurveyService(UpdateObjMixin):
                     ExceptionDetails.NO_RIGHT_FOR_ACTION
                 )
             async with atomic_transaction(session=self.repo.session):
-                photos_to_delete = await self._stage_deletion(
+                paths_photo_to_delete = await self._stage_deletion(
                     survey_db=survey_db
                 )
-            if photos_to_delete:
-                for path in photos_to_delete:
+            if paths_photo_to_delete:
+                for path in paths_photo_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
         except NotFoundError:

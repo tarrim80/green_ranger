@@ -13,6 +13,12 @@ PHOTO_FIELDS_CONFIG = {
             examples=["media/photo/file_name.jpg"],
         )
     ],
+    "thumbnail_path": [
+        Field(
+            description="Путь хранения миниатюры изображения",
+            examples=["media/photo/file_name_thumb.jpg"],
+        )
+    ],
     "uploaded_at": [
         Field(
             description="Дата и время загрузки фото",
@@ -43,6 +49,7 @@ class PhotoBase(BaseModel):
     """Базовая схема для фотографии."""
 
     file_path: Annotated[str, *PHOTO_FIELDS_CONFIG["file_path"]]
+    thumbnail_path: Annotated[str, *PHOTO_FIELDS_CONFIG["thumbnail_path"]]
     defect_type_id: Annotated[
         int | None, *PHOTO_FIELDS_CONFIG["defect_type_id"]
     ] = None
@@ -65,6 +72,7 @@ class PhotoUpdate(PhotoBase):
     """Схема для обновления фотографии."""
 
     file_path: Annotated[str, *PHOTO_FIELDS_CONFIG["file_path"]] | None = None  # type: ignore
+    thumbnail_path: Annotated[str, *PHOTO_FIELDS_CONFIG["thumbnail_path"]] | None = None  # type: ignore
 
 
 class PhotoRead(PhotoBase):

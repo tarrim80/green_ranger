@@ -75,6 +75,7 @@ class SurveyDefectService(UpdateObjMixin):
                 for photo_data in photos_data:
                     new_data = {
                         "file_path": photo_data["file_path"],
+                        "thumbnail_path": photo_data["thumbnail_path"],
                         "survey_defect_id": new_survey_defect.id,
                     }
                     new_photo = Photo(**new_data)
@@ -125,14 +126,14 @@ class SurveyDefectService(UpdateObjMixin):
 
     async def _stage_deletion(self, defect_db: SurveyDefect) -> list[Path]:
         """Подготавливает дефект и связанные фотографии к удалению."""
-        photos_to_delete = []
+        paths_photo_to_delete = []
         for photo in defect_db.photos:
-            photo_path = await self.photo_service._stage_deletion(
+            paths_defect_photo = await self.photo_service._stage_deletion(
                 photo_id=photo.id
             )
-            photos_to_delete.append(photo_path)
+            paths_photo_to_delete.extend(paths_defect_photo)
         await self.repo.remove(id=defect_db.id)
-        return photos_to_delete
+        return paths_photo_to_delete
 
     async def delete_with_photos(self, defect_id: int, user: User) -> None:
         """
@@ -156,11 +157,11 @@ class SurveyDefectService(UpdateObjMixin):
                     ExceptionDetails.NO_RIGHT_FOR_ACTION
                 )
             async with atomic_transaction(session=self.repo.session):
-                photos_to_delete = await self._stage_deletion(
+                paths_photo_to_delete = await self._stage_deletion(
                     defect_db=defect_db
                 )
-            if photos_to_delete:
-                for path in photos_to_delete:
+            if paths_photo_to_delete:
+                for path in paths_photo_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
         except NotFoundError:

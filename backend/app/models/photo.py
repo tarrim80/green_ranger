@@ -23,6 +23,10 @@ class Photo(
         String(255),
         comment="Путь к файлу изображения на сервере",
     )
+    thumbnail_path: Mapped[str] = mapped_column(
+        String(255),
+        comment="Путь к файлу миниатюры на сервере",
+    )
     # TODO: (Требует миграции) Изменить на DateTime(timezone=True) и создать миграцию
     # для корректной работы с часовыми поясами.
     uploaded_at: Mapped[DateTime] = mapped_column(

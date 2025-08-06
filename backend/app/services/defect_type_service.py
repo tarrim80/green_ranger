@@ -65,6 +65,7 @@ class DefectTypeService(UpdateObjMixin):
                 for photo_data in photos_data:
                     new_data = {
                         "file_path": photo_data["file_path"],
+                        "thumbnail_path": photo_data["thumbnail_path"],
                         "defect_type_id": new_defect_type.id,
                     }
                     new_photo = Photo(**new_data)
@@ -118,24 +119,24 @@ class DefectTypeService(UpdateObjMixin):
                     id=defect_type_id,
                 )
             )
-        images_to_delete: list[Path] = []
+        paths_image_to_delete = []
         for image in defect_type_db.images:
-            image_path = await self.photo_service._stage_deletion(
+            paths_defect_type_image = await self.photo_service._stage_deletion(
                 photo_id=image.id
             )
-            images_to_delete.append(image_path)
+            paths_image_to_delete.extend(paths_defect_type_image)
         await self.repo.remove(id=defect_type_id)
-        return images_to_delete
+        return paths_image_to_delete
 
     async def delete_with_images(self, defect_type_id: int) -> None:
         """Удаляет вид дефекта и все связанные с ним изображения."""
         try:
             async with atomic_transaction(session=self.repo.session):
-                images_to_delete = await self._stage_deletion(
+                paths_image_to_delete = await self._stage_deletion(
                     defect_type_id=defect_type_id
                 )
-            if images_to_delete:
-                for path in images_to_delete:
+            if paths_image_to_delete:
+                for path in paths_image_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
         except NotFoundError:
