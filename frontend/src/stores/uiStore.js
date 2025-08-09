@@ -37,6 +37,10 @@ export const useUiStore = defineStore("ui", {
       this.isFormDirty = false;
     },
 
+    updatePanelProps(props) {
+      this.panelProps = { ...this.panelProps, ...props };
+    },
+
     showInfoDialog(title, text) {
       this.infoDialogTitle = title;
       this.infoDialogText = text;
