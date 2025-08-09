@@ -41,6 +41,9 @@
                 </template>
               </v-tooltip>
             </template>
+            <template v-slot:no-data>
+            <div class="text-center py-4">Нет элементов для отображения</div>
+            </template>  
           </v-data-table>
         </v-card>
       </v-col>

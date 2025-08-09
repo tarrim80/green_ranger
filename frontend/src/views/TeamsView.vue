@@ -36,6 +36,9 @@
             <v-icon small class="mr-2" @click="openEditForm(item.originalItem)">mdi-pencil</v-icon>
             <v-icon small @click="deleteTeam(item.originalItem)">mdi-delete</v-icon>
           </template>
+          <template v-slot:no-data>
+            <div class="text-center py-4">Нет элементов для отображения</div>
+          </template>  
         </v-data-table>
       </v-col>
     </v-row>
