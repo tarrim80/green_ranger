@@ -176,3 +176,6 @@ media/
 # Frontend Files
 frontend/
 frontend-worktree/
+
+# Gemini
+GEMINI.md
