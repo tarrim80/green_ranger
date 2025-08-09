@@ -49,27 +49,32 @@ class DefectTypeService(UpdateObjMixin):
         return defect_type_db
 
     async def create_with_photos(
-        self, defect_type_in: DefectTypeCreate, files: list[UploadFile]
+        self,
+        defect_type_in: DefectTypeCreate,
+        files: list[UploadFile] | None = None,
     ) -> DefectType:
         """Создает новый вид дефекта с привязкой фотографий."""
         saved_file_paths = []
+        photos_data = []
         try:
-            photos_data, saved_file_paths = await save_uploaded_images(
-                files=files
-            )
+            if files:
+                photos_data, saved_file_paths = await save_uploaded_images(
+                    files=files
+                )
             new_data = defect_type_in.model_dump()
             new_defect_type = DefectType(**new_data)
             async with atomic_transaction(session=self.repo.session):
                 self.repo.session.add(instance=new_defect_type)
                 await self.repo.session.flush()
-                for photo_data in photos_data:
-                    new_data = {
-                        "file_path": photo_data["file_path"],
-                        "thumbnail_path": photo_data["thumbnail_path"],
-                        "defect_type_id": new_defect_type.id,
-                    }
-                    new_photo = Photo(**new_data)
-                    self.repo.session.add(instance=new_photo)
+                if photos_data:
+                    for photo_data in photos_data:
+                        new_data = {
+                            "file_path": photo_data["file_path"],
+                            "thumbnail_path": photo_data["thumbnail_path"],
+                            "defect_type_id": new_defect_type.id,
+                        }
+                        new_photo = Photo(**new_data)
+                        self.repo.session.add(instance=new_photo)
                 await self.repo.session.refresh(
                     instance=new_defect_type, attribute_names=["images"]
                 )

@@ -70,7 +70,7 @@ async def get_defect_type(
 async def create_defect_type(
     name: str = Form(default=...),
     description: str | None = Form(default=None),
-    files: list[UploadFile] = File(default=...),
+    files: list[UploadFile] | None = File(default=None),
     service: DefectTypeService = Depends(),
 ) -> DefectTypeRead:
     defect_type_in = DefectTypeCreate(
