@@ -9,6 +9,8 @@ from app.core.exceptions import (
     SectorUpdatingError,
 )
 from app.core.permissions import IsAdmin, IsCurator, permission_dependency
+from app.core.user import current_user
+from app.models import User
 from app.schemas import SectorCreate, SectorRead, SectorUpdate
 from app.services.sector_service import SectorService
 
@@ -59,10 +61,14 @@ async def get_sector(
     ],
 )
 async def create_sector(
-    sector_in: SectorCreate, service: SectorService = Depends()
+    sector_in: SectorCreate,
+    service: SectorService = Depends(),
+    current_user: User = Depends(current_user),
 ) -> SectorRead:
     try:
-        sector_db = await service.create_sector(sector_in=sector_in)
+        sector_db = await service.create_sector(
+            sector_in=sector_in, user=current_user
+        )
         return SectorRead.model_validate(obj=sector_db)
     except SectorCreationError as e:
         raise HTTPException(
@@ -82,16 +88,24 @@ async def create_sector(
     ],
 )
 async def update_sector(
-    sector_id: int, sector_in: SectorUpdate, service: SectorService = Depends()
+    sector_id: int,
+    sector_in: SectorUpdate,
+    service: SectorService = Depends(),
+    current_user: User = Depends(current_user),
 ) -> SectorRead:
     try:
         sector_update_db = await service.update_sector(
-            obj_id=sector_id, obj_in=sector_in
+            obj_id=sector_id, obj_in=sector_in, user=current_user
         )
         return SectorRead.model_validate(obj=sector_update_db)
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except NotAllowedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            detail=str(e),
         ) from e
     except SectorUpdatingError as e:
         raise HTTPException(

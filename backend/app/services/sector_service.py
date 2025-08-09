@@ -13,9 +13,9 @@ from app.core.exceptions import (
     SectorUpdatingError,
 )
 from app.core.transaction_manager import atomic_transaction
-from app.models import Sector
+from app.models import Sector, User
 from app.repositories.sector import SectorRepository
-from app.schemas import SectorCreate, SectorUpdate
+from app.schemas import RoleEnum, SectorCreate, SectorUpdate
 from app.services.mixins import DeleteObjMixin
 
 
@@ -47,7 +47,9 @@ class SectorService(DeleteObjMixin):
             )
         return sector_db
 
-    async def create_sector(self, sector_in: SectorCreate) -> Sector:
+    async def create_sector(
+        self, sector_in: SectorCreate, user: User
+    ) -> Sector:
         """Создает новый учетный участок."""
         shapely_geom = shape(context=sector_in.geometry)
         wkt_element = WKTElement(
@@ -55,6 +57,8 @@ class SectorService(DeleteObjMixin):
         )
         sector_data = sector_in.model_dump()
         sector_data["geometry"] = wkt_element
+        if user.role == RoleEnum.CURATOR:
+            sector_data["curator_id"] = user.id
         try:
             async with atomic_transaction(session=self.repo.session):
                 new_sector = self.repo.model(**sector_data)
@@ -79,10 +83,12 @@ class SectorService(DeleteObjMixin):
                 f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
             ) from e
 
-    async def update_sector(self, obj_id: int, obj_in: SectorUpdate) -> Sector:
+    async def update_sector(
+        self, obj_id: int, obj_in: SectorUpdate, user: User
+    ) -> Sector:
         """Обновляет данные существующего учетного участка."""
         try:
-            sector_db = await self.repo.get(id=obj_id)
+            sector_db: Sector = await self.repo.get(id=obj_id)
             if not sector_db:
                 raise NotFoundError(
                     ExceptionDetails.get_not_found_detail(
@@ -97,6 +103,12 @@ class SectorService(DeleteObjMixin):
                     data=shapely_geom.wkt, srid=SRID_MERCATOR_WGS84
                 )
                 update_data["geometry"] = wkt_element
+            if user.role == RoleEnum.CURATOR:
+                curator_id = (
+                    update_data.get("curator_id", None) or sector_db.curator_id
+                )
+                if curator_id != user.id:
+                    raise NotAllowedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
             async with atomic_transaction(session=self.repo.session):
                 for field, value in update_data.items():
                     setattr(sector_db, field, value)
@@ -105,7 +117,7 @@ class SectorService(DeleteObjMixin):
                 await self.repo.session.flush()
                 await self.repo.session.refresh(instance=sector_db)
             return sector_db
-        except NotFoundError:
+        except (NotFoundError, NotAllowedError):
             raise
         except Exception as e:
             raise SectorUpdatingError(
