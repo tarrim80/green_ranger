@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
 from app.api.constants import SAFE_METHODS
 from app.api.routers import main_router
@@ -80,3 +81,6 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
+app.mount(
+    path="/media", app=StaticFiles(directory=settings.media_root), name="media"
+)
