@@ -126,8 +126,17 @@ async def create_survey(
         survey_db = await service.create_with_photos(
             survey_in=survey_in,
             files=files,
+            user=current_user,
         )
         return SurveyRead.model_validate(obj=survey_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except SurveyCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -149,13 +158,23 @@ async def add_tree_photos_to_survey(
     survey_id: int,
     files: list[UploadFile],
     service: PhotoService = Depends(),
+    current_user: User = Depends(dependency=current_user),
 ) -> list[PhotoRead]:
     try:
         tree_photos = await service.upload_and_link_photos(
             files=files,
             survey_id=survey_id,
+            user=current_user,
         )
         return [PhotoRead.model_validate(photo) for photo in tree_photos]
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except PhotoCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -169,7 +188,7 @@ async def add_tree_photos_to_survey(
     summary="Изменение обследования",
     description="Изменяет поля записи обследования по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
     ],
 )
 async def update_survey(

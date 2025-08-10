@@ -11,10 +11,14 @@ from app.core.exceptions import (
     SurveyRemovingError,
     SurveyUpdatingError,
 )
-from app.core.permissions import IsSurveyOwnerOrCurator
+from app.core.permissions import (
+    IsSurveyOwnerOrCurator,
+    IsTreeCuratorOrCorrectTeam,
+)
 from app.core.transaction_manager import atomic_transaction
 from app.models import Photo, Survey, User
 from app.repositories.survey import SurveyRepository
+from app.repositories.tree import TreeRepository
 from app.schemas import SurveyCreate, SurveyUpdate
 from app.services.mixins import UpdateObjMixin
 from app.services.photo_service import PhotoService
@@ -28,10 +32,12 @@ class SurveyService(UpdateObjMixin):
     def __init__(
         self,
         repo: SurveyRepository = Depends(),
+        tree_repo: TreeRepository = Depends(),
         defect_service: SurveyDefectService = Depends(),
         photo_service: PhotoService = Depends(),
     ) -> None:
         self.repo = repo
+        self.tree_repo = tree_repo
         self.defect_service = defect_service
         self.photo_service = photo_service
 
@@ -60,11 +66,29 @@ class SurveyService(UpdateObjMixin):
         return list(surveys_db)
 
     async def create_with_photos(
-        self, survey_in: SurveyCreate, files: list[UploadFile]
+        self,
+        survey_in: SurveyCreate,
+        files: list[UploadFile],
+        user: User,
     ) -> Survey:
         """Создает новое обследование с привязкой фотографий."""
         saved_file_paths = []
         try:
+            tree_db = await self.tree_repo.get(survey_in.tree_id)
+            if not tree_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.tree_repo.model.verbose_name(),
+                        id=survey_in.tree_id,
+                    )
+                )
+            permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
+                user=user, obj=tree_db
+            )
+            if not permission:
+                raise PermissionDenniedError(
+                    ExceptionDetails.NO_RIGHT_FOR_ACTION
+                )
             photos_data, saved_file_paths = await save_uploaded_images(
                 files=files
             )
@@ -85,6 +109,8 @@ class SurveyService(UpdateObjMixin):
                     instance=new_survey, attribute_names=["tree_photos"]
                 )
             return new_survey
+        except (NotFoundError, PermissionDenniedError):
+            raise
         except Exception as e:
             for filename in saved_file_paths:
                 os.remove(filename)
@@ -116,16 +142,16 @@ class SurveyService(UpdateObjMixin):
                 )
             survey = await self.update_obj(db_obj=survey_db, obj_in=obj_in)
             return survey
-        except NotFoundError:
-            raise
-        except PermissionDenniedError:
+        except (NotFoundError, PermissionDenniedError):
             raise
         except Exception as e:
             raise SurveyUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(self, survey_db: Survey) -> list[Path]:
+    async def _stage_deletion(
+        self, survey_db: Survey, user: User
+    ) -> list[Path]:
         """
         Подготавливает обследование и все связанные с ним данные к удалению.
         """
@@ -133,7 +159,7 @@ class SurveyService(UpdateObjMixin):
         for survey_defect in survey_db.survey_defects:
             path_defect_photo_to_delete = (
                 await self.defect_service._stage_deletion(
-                    defect_db=survey_defect
+                    defect_db=survey_defect, user=user
                 )
             )
             if path_defect_photo_to_delete:
@@ -141,7 +167,7 @@ class SurveyService(UpdateObjMixin):
         for tree_photo in survey_db.tree_photos:
             paths_tree_photo_to_delete = (
                 await self.photo_service._stage_deletion(
-                    photo_id=tree_photo.id
+                    photo_id=tree_photo.id, user=user
                 )
             )
             paths_photo_to_delete.extend(paths_tree_photo_to_delete)
@@ -169,15 +195,13 @@ class SurveyService(UpdateObjMixin):
                 )
             async with atomic_transaction(session=self.repo.session):
                 paths_photo_to_delete = await self._stage_deletion(
-                    survey_db=survey_db
+                    survey_db=survey_db, user=user
                 )
             if paths_photo_to_delete:
                 for path in paths_photo_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
-        except NotFoundError:
-            raise
-        except PermissionDenniedError:
+        except (NotFoundError, PermissionDenniedError):
             raise
         except Exception as e:
             raise SurveyRemovingError(
