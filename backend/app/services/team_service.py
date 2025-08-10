@@ -1,7 +1,10 @@
 from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
 
-from app.api.validators import validate_leader_is_member
+from app.api.validators import (
+    validate_leader_is_member,
+    validate_user_is_free_for_team,
+)
 from app.core.exceptions import (
     ExceptionDetails,
     NotAllowedError,
@@ -10,12 +13,12 @@ from app.core.exceptions import (
     TeamRemovingError,
     TeamUpdatingError,
 )
+from app.core.permissions import IsStrictlyVolunteer
 from app.core.transaction_manager import atomic_transaction
 from app.models import Team
 from app.repositories.team import TeamRepository
 from app.repositories.user import UserRepository
-from app.schemas import RoleEnum, TeamCreate, TeamUpdate
-from app.services.mixins import DeleteObjMixin
+from app.schemas import TeamCreate, TeamUpdate
 
 
 class TeamService:
@@ -63,15 +66,22 @@ class TeamService:
                 )
             if len(members) != len(set(member_ids)):
                 raise NotFoundError(ExceptionDetails.NOT_FOUND_SOME_USERS)
+            validate_leader_is_member(
+                leader_id=leader_id, member_ids=member_ids
+            )
             async with atomic_transaction(session=self.repo.session):
                 new_team = Team(**team_data)
                 self.repo.session.add(instance=new_team)
                 await self.repo.session.flush()
                 for member in members:
-                    if member.role != RoleEnum.VOLUNTEER:
+                    permission = await IsStrictlyVolunteer().has_permission(
+                        user=member
+                    )
+                    if not permission:
                         raise NotAllowedError(
                             ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
                         )
+                    validate_user_is_free_for_team(user=member)
                     setattr(member, "team_id", new_team.id)
                     self.repo.session.add(instance=member)
                 await self.repo.session.refresh(
@@ -196,14 +206,16 @@ class TeamService:
                             ExceptionDetails.NOT_FOUND_SOME_USERS
                         )
                     for member in members_to_add:
-                        if member.role != RoleEnum.VOLUNTEER:
+                        permission = (
+                            await IsStrictlyVolunteer().has_permission(
+                                user=member
+                            )
+                        )
+                        if not permission:
                             raise NotAllowedError(
                                 ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
                             )
-                        if member.team_id is not None:
-                            raise NotAllowedError(
-                                ExceptionDetails.NOT_ALLOWED_ADD_OTHER_TEAM
-                            )
+                        validate_user_is_free_for_team(user=member)
                         setattr(member, "team_id", team_id)
                         self.repo.session.add(instance=member)
                 if ids_to_remove:
