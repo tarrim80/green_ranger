@@ -12,7 +12,7 @@ from app.core.exceptions import (
     NotFoundError,
 )
 from app.core.transaction_manager import atomic_transaction
-from app.models import DefectType, Photo
+from app.models import DefectType, Photo, User
 from app.repositories.defect_type import DefectTypeRepository
 from app.schemas import DefectTypeCreate, DefectTypeUpdate
 from app.services.mixins import UpdateObjMixin
@@ -114,7 +114,9 @@ class DefectTypeService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(self, defect_type_id: int) -> list[Path]:
+    async def _stage_deletion(
+        self, defect_type_id: int, user: User
+    ) -> list[Path]:
         """Подготавливает вид дефекта и связанные изображения к удалению."""
         defect_type_db = await self.repo.get(id=defect_type_id)
         if not defect_type_db:
@@ -127,18 +129,20 @@ class DefectTypeService(UpdateObjMixin):
         paths_image_to_delete = []
         for image in defect_type_db.images:
             paths_defect_type_image = await self.photo_service._stage_deletion(
-                photo_id=image.id
+                photo_id=image.id, user=user
             )
             paths_image_to_delete.extend(paths_defect_type_image)
         await self.repo.remove(id=defect_type_id)
         return paths_image_to_delete
 
-    async def delete_with_images(self, defect_type_id: int) -> None:
+    async def delete_with_images(
+        self, defect_type_id: int, user: User
+    ) -> None:
         """Удаляет вид дефекта и все связанные с ним изображения."""
         try:
             async with atomic_transaction(session=self.repo.session):
                 paths_image_to_delete = await self._stage_deletion(
-                    defect_type_id=defect_type_id
+                    defect_type_id=defect_type_id, user=user
                 )
             if paths_image_to_delete:
                 for path in paths_image_to_delete:

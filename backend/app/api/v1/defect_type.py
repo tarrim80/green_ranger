@@ -7,9 +7,12 @@ from app.core.exceptions import (
     DefectTypeUpdatingError,
     ExceptionDetails,
     NotFoundError,
+    PermissionDenniedError,
     PhotoCreationError,
 )
 from app.core.permissions import IsAdmin, permission_dependency
+from app.core.user import current_user
+from app.models import User
 from app.schemas import (
     DefectTypeCreate,
     DefectTypeRead,
@@ -104,13 +107,19 @@ async def add_images_to_defect_type(
     defect_type_id: int,
     files: list[UploadFile],
     service: PhotoService = Depends(),
+    current_user: User = Depends(dependency=current_user),
 ) -> list[PhotoRead]:
     try:
         images = await service.upload_and_link_photos(
             files=files,
             defect_type_id=defect_type_id,
+            user=current_user,
         )
         return [PhotoRead.model_validate(image) for image in images]
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except PhotoCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -157,13 +166,21 @@ async def update_defect_type(
     ],
 )
 async def delete_defect_type(
-    defect_type_id: int, service: DefectTypeService = Depends()
+    defect_type_id: int,
+    service: DefectTypeService = Depends(),
+    current_user: User = Depends(dependency=current_user),
 ) -> None:
     try:
-        await service.delete_with_images(defect_type_id=defect_type_id)
+        await service.delete_with_images(
+            defect_type_id=defect_type_id, user=current_user
+        )
     except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except DefectTypeRemovingError as e:
         raise HTTPException(
