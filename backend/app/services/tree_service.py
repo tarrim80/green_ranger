@@ -13,7 +13,10 @@ from app.core.exceptions import (
     TreeCreationError,
     TreeUpdatingError,
 )
-from app.core.permissions import IsTreeCuratorOrCorrectTeam
+from app.core.permissions import (
+    IsSectorCuratorOrCorrectTeam,
+    IsTreeCuratorOrCorrectTeam,
+)
 from app.models import Tree, User
 from app.repositories.sector import SectorRepository
 from app.repositories.tree import TreeRepository
@@ -69,25 +72,15 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
                     id=obj_in.sector_id,
                 )
             )
-        if user.role != RoleEnum.ADMIN:
-            if user.role == RoleEnum.CURATOR and user.id != sector.curator_id:
-                raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHT_FOR_ACTION
-                )
-            if user.role == RoleEnum.VOLUNTEER:
-                if not user.team_id or user.team_id != sector.team_id:
-                    raise PermissionDenniedError(
-                        ExceptionDetails.NO_RIGHT_FOR_ACTION
-                    )
-        shapely_point = shape(context=obj_in.location.model_dump())
-        wkt_point = WKTElement(
-            data=shapely_point.wkt, srid=SRID_MERCATOR_WGS84
+        permission = await IsSectorCuratorOrCorrectTeam().has_obj_permission(
+            user=user, obj=sector
         )
-        stmt = select(ST_Contains(sector.geometry, wkt_point))
-        result = await self.repo.session.execute(stmt)
-        is_contained = result.scalar.one()
-        if not is_contained:
-            raise ValueError(ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR)
+        if not permission:
+            raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
+        location = obj_in.location.model_dump()
+        await self._validate_location_in_sector(
+            location=location, sector=sector
+        )
         try:
             tree = await self.create_obj(obj_in=obj_in)
             return tree
@@ -101,7 +94,7 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
     ) -> Tree:
         """Обновляет данные существующего растения с проверкой прав доступа."""
         try:
-            tree_db = await self.repo.get(id=obj_id)
+            tree_db: Tree = await self.repo.get(id=obj_id)
             if not tree_db:
                 raise NotFoundError(
                     ExceptionDetails.get_not_found_detail(
@@ -115,6 +108,13 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
             if not permission:
                 raise PermissionDenniedError(
                     ExceptionDetails.NO_RIGHT_FOR_ACTION
+                )
+            if (
+                location := obj_in.model_dump().get("location", None)
+                is not None
+            ):
+                await self._validate_location_in_sector(
+                    location=location, sector=tree_db.sector
                 )
             tree_update = await self.update_obj(db_obj=tree_db, obj_in=obj_in)
             return tree_update
@@ -130,3 +130,17 @@ class TreeService(CreateObjMixin, UpdateObjMixin):
     async def delete_tree(self, tree_id: int) -> None:
         """Запрещает прямое удаление растения."""
         raise NotAllowedError(ExceptionDetails.NOT_ALLOWED_REMOVE_TREES)
+
+    async def _validate_location_in_sector(self, location, sector) -> None:
+        """
+        Проверяет что местоположение растения входит в обозначенный участок.
+        """
+        shapely_point = shape(context=location)
+        wkt_point = WKTElement(
+            data=shapely_point.wkt, srid=SRID_MERCATOR_WGS84
+        )
+        stmt = select(ST_Contains(sector.geometry, wkt_point))
+        result = await self.repo.session.execute(stmt)
+        is_contained = result.scalar.one()
+        if not is_contained:
+            raise ValueError(ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR)
