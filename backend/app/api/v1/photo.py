@@ -4,12 +4,14 @@ from fastapi.routing import APIRouter
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
+    PermissionDenniedError,
     PhotoCreationError,
     PhotoRemovingError,
-    PhotoUpdatingError,
 )
 from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
-from app.schemas import PhotoRead, PhotoUpdate
+from app.core.user import current_user
+from app.models import User
+from app.schemas import PhotoRead
 from app.services.photo_service import PhotoService
 
 router = APIRouter()
@@ -37,6 +39,7 @@ async def upload_photos(
         default=None, json_schema_extra={"example": 1, "default": None}
     ),
     service: PhotoService = Depends(),
+    current_user: User = Depends(dependency=current_user),
 ) -> list[PhotoRead]:
     try:
         photos = await service.upload_and_link_photos(
@@ -44,45 +47,22 @@ async def upload_photos(
             defect_type_id=defect_type_id,
             survey_id=survey_id,
             survey_defect_id=survey_defect_id,
+            user=current_user,
         )
         return [PhotoRead.model_validate(photo) for photo in photos]
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except PhotoCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"{ExceptionDetails.FAILED_CREATE_PHOTO} {e}",
         )
-
-
-@router.patch(
-    path="/{photo_id}",
-    response_model=PhotoRead,
-    summary="Изменение фотографии",
-    description="Изменяет связи фотографии.",
-    dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
-    ],
-)
-async def update_photo(
-    photo_id: int, photo_in: PhotoUpdate, service: PhotoService = Depends()
-) -> PhotoRead:
-    try:
-        updated_photo = await service.update_photo(
-            obj_id=photo_id, obj_in=photo_in
-        )
-        return PhotoRead.model_validate(obj=updated_photo)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PhotoUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
 
 
 @router.delete(
@@ -95,14 +75,19 @@ async def update_photo(
     ],
 )
 async def delete_photo(
-    photo_id: int, service: PhotoService = Depends()
+    photo_id: int,
+    service: PhotoService = Depends(),
+    current_user: User = Depends(dependency=current_user),
 ) -> None:
     try:
-        await service.delete_photo(photo_id=photo_id)
+        await service.delete_photo(photo_id=photo_id, user=current_user)
     except NotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
         ) from e
     except PhotoRemovingError as e:
         raise HTTPException(
