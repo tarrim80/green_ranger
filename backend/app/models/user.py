@@ -31,6 +31,7 @@ class User(SQLAlchemyBaseUserTable[int], IntIdPkMixin, Base):  # type: ignore
         "Team",
         foreign_keys=[team_id],
         back_populates="members",
+        lazy="selectin",
     )
     role: Mapped[RoleEnum] = mapped_column(
         Enum(RoleEnum, name="role_enum"),
