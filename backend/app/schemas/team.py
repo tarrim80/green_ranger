@@ -57,6 +57,9 @@ class TeamUpdate(BaseModel):
 
     name: Annotated[str | None, TEAM_FIELDS_CONFIG["name"]] = None
     leader_id: Annotated[int | None, TEAM_FIELDS_CONFIG["leader_id"]] = None
+    member_ids: Annotated[
+        list[int] | None, TEAM_FIELDS_CONFIG["member_ids"]
+    ] = None
 
 
 class TeamShortRead(BaseModel):

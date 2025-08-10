@@ -15,7 +15,7 @@ from app.core.exceptions import (
 )
 from app.core.permissions import IsStrictlyVolunteer
 from app.core.transaction_manager import atomic_transaction
-from app.models import Team
+from app.models import Team, User
 from app.repositories.team import TeamRepository
 from app.repositories.user import UserRepository
 from app.schemas import TeamCreate, TeamUpdate
@@ -53,10 +53,7 @@ class TeamService:
         """Создает новую команду и привязывает к ней участников."""
         try:
             leader_id = team_in.leader_id
-            member_ids = team_in.member_ids
-            team_data = team_in.model_dump(exclude={"member_ids"})
             leader = await self.user_repo.get(id=leader_id)
-            members = await self.user_repo.get_by_ids(ids=member_ids)
             if not leader:
                 raise NotFoundError(
                     ExceptionDetails.get_not_found_detail(
@@ -64,24 +61,21 @@ class TeamService:
                         id=leader_id,
                     )
                 )
-            if len(members) != len(set(member_ids)):
-                raise NotFoundError(ExceptionDetails.NOT_FOUND_SOME_USERS)
+            member_ids = team_in.member_ids
+
             validate_leader_is_member(
                 leader_id=leader_id, member_ids=member_ids
             )
+            members = await self._validate_and_get_new_members(
+                member_ids=member_ids
+            )
+
             async with atomic_transaction(session=self.repo.session):
+                team_data = team_in.model_dump(exclude={"member_ids"})
                 new_team = Team(**team_data)
                 self.repo.session.add(instance=new_team)
                 await self.repo.session.flush()
                 for member in members:
-                    permission = await IsStrictlyVolunteer().has_permission(
-                        user=member
-                    )
-                    if not permission:
-                        raise NotAllowedError(
-                            ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
-                        )
-                    validate_user_is_free_for_team(user=member)
                     setattr(member, "team_id", new_team.id)
                     self.repo.session.add(instance=member)
                 await self.repo.session.refresh(
@@ -99,43 +93,113 @@ class TeamService:
                 f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
             )
 
+    async def _validate_and_get_new_members(
+        self, member_ids: list[int]
+    ) -> list[User]:
+        """
+        Проверяет, могут ли пользователи быть добавлены в команду.
+        """
+        if not member_ids:
+            return []
+
+        members = await self.user_repo.get_by_ids(ids=member_ids)
+        if len(members) != len(set(member_ids)):
+            raise NotFoundError(ExceptionDetails.NOT_FOUND_SOME_USERS)
+
+        for member in members:
+            permission = await IsStrictlyVolunteer().has_permission(
+                user=member
+            )
+            if not permission:
+                raise NotAllowedError(
+                    ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
+                )
+            validate_user_is_free_for_team(user=member)
+
+        return members
+
+    async def _sync_members(
+        self, *, team_db: Team, new_member_ids_set: set[int]
+    ) -> None:
+        """Синхронизирует состав участников команды."""
+        current_member_ids_set = {member.id for member in team_db.members}
+        ids_to_add = list(new_member_ids_set - current_member_ids_set)
+        ids_to_remove = list(current_member_ids_set - new_member_ids_set)
+
+        if ids_to_add:
+            members_to_add = await self._validate_and_get_new_members(
+                member_ids=ids_to_add
+            )
+            for member in members_to_add:
+                setattr(member, "team_id", team_db.id)
+                self.repo.session.add(instance=member)
+
+        if ids_to_remove:
+            members_to_remove = await self.user_repo.get_by_ids(
+                ids=ids_to_remove
+            )
+            for member in members_to_remove:
+                setattr(member, "team_id", None)
+                self.repo.session.add(instance=member)
+
     async def update_team(self, team_id: int, team_in: TeamUpdate) -> Team:
         """Обновляет данные существующей команды."""
-        team_updated: Team
         try:
-            async with atomic_transaction(session=self.repo.session):
-                team_db = await self.repo.get(id=team_id)
-                if not team_db:
+            team_db = await self.repo.get(id=team_id)
+            if not team_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.repo.model.verbose_name(),
+                        id=team_id,
+                    )
+                )
+
+            team_update_data = team_in.model_dump(exclude_unset=True)
+            new_member_ids = team_update_data.get("member_ids")
+
+            final_leader_id = team_update_data.get(
+                "leader_id", team_db.leader_id
+            )
+            current_member_ids = {member.id for member in team_db.members}
+            final_member_ids = (
+                set(new_member_ids)
+                if new_member_ids is not None
+                else current_member_ids
+            )
+
+            if "leader_id" in team_update_data:
+                leader = await self.user_repo.get(id=final_leader_id)
+                if not leader:
                     raise NotFoundError(
                         ExceptionDetails.get_not_found_detail(
-                            model_name=self.repo.model.verbose_name(),
-                            id=team_id,
+                            model_name=self.user_repo.model.verbose_name(),
+                            id=final_leader_id,
                         )
                     )
-                team_update_data = team_in.model_dump(exclude_unset=True)
-                leader_id: int | None = team_update_data.get("leader_id")
-                if leader_id:
-                    member_ids: list[int] = [
-                        member.id for member in team_db.members
-                    ]
-                    leader = await self.user_repo.get(id=leader_id)
-                    if not leader:
-                        raise NotFoundError(
-                            ExceptionDetails.get_not_found_detail(
-                                model_name=self.user_repo.model.verbose_name(),
-                                id=leader_id,
-                            )
-                        )
-                    validate_leader_is_member(
-                        leader_id=leader_id, member_ids=member_ids
+
+            validate_leader_is_member(
+                leader_id=final_leader_id, member_ids=list(final_member_ids)
+            )
+
+            async with atomic_transaction(session=self.repo.session):
+                if new_member_ids is not None:
+                    await self._sync_members(
+                        team_db=team_db,
+                        new_member_ids_set=final_member_ids,
                     )
-                team_updated = await self.repo.update(
-                    db_obj=team_db, obj_in=team_in
-                )
+                    team_update_data.pop("member_ids")
+
                 await self.repo.session.flush()
-                await self.repo.session.refresh(instance=team_updated)
+                team_updated = await self.repo.update(
+                    db_obj=team_db,
+                    obj_in=TeamUpdate(**team_update_data),
+                )
+                await self.repo.session.refresh(
+                    instance=team_updated,
+                    attribute_names=["members", "leader"],
+                )
             return team_updated
-        except (ValueError, NotFoundError) as e:
+        except (ValueError, NotFoundError, NotAllowedError) as e:
             raise
         except Exception as e:
             if isinstance(e, IntegrityError):
@@ -143,7 +207,7 @@ class TeamService:
                     ExceptionDetails.ALREADY_EXIST_TEAM_NAME
                 )
             raise TeamUpdatingError(
-                f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
+                f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             )
 
     async def delete_team(self, team_id: int) -> None:
@@ -176,62 +240,4 @@ class TeamService:
         except Exception as e:
             raise TeamRemovingError(
                 f"{ExceptionDetails.FAILED_REMOVE_RECORD}: {e}"
-            ) from e
-
-    async def sync_members(self, team_id: int, member_ids: list[int]) -> Team:
-        """Добавляет новых участников в команду и удаляет исключенных."""
-        try:
-            team_db = await self.repo.get(id=team_id)
-            if not team_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(), id=team_id
-                    )
-                )
-            new_member_ids_set = set(member_ids)
-            current_member_ids_set = {member.id for member in team_db.members}
-            ids_to_add = new_member_ids_set - current_member_ids_set
-            ids_to_remove = current_member_ids_set - new_member_ids_set
-            if team_db.leader_id in ids_to_remove:
-                raise NotAllowedError(
-                    ExceptionDetails.NOT_ALLOWED_REMOVE_LEADER_TEAM
-                )
-            async with atomic_transaction(session=self.repo.session):
-                if ids_to_add:
-                    members_to_add = await self.user_repo.get_by_ids(
-                        ids=list(ids_to_add)
-                    )
-                    if len(members_to_add) != len(ids_to_add):
-                        raise NotFoundError(
-                            ExceptionDetails.NOT_FOUND_SOME_USERS
-                        )
-                    for member in members_to_add:
-                        permission = (
-                            await IsStrictlyVolunteer().has_permission(
-                                user=member
-                            )
-                        )
-                        if not permission:
-                            raise NotAllowedError(
-                                ExceptionDetails.NOT_ALLOWED_ADD_NO_VOLUNTEER
-                            )
-                        validate_user_is_free_for_team(user=member)
-                        setattr(member, "team_id", team_id)
-                        self.repo.session.add(instance=member)
-                if ids_to_remove:
-                    members_to_remove = await self.user_repo.get_by_ids(
-                        ids=list(ids_to_remove)
-                    )
-                    for member in members_to_remove:
-                        setattr(member, "team_id", None)
-                        self.repo.session.add(instance=member)
-            await self.repo.session.refresh(
-                instance=team_db, attribute_names=["members", "leader"]
-            )
-            return team_db
-        except (NotAllowedError, NotFoundError) as e:
-            raise
-        except Exception as e:
-            raise TeamCreationError(
-                f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
             ) from e

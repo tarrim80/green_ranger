@@ -102,46 +102,14 @@ async def update_team(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
         ) from e
-    except TeamUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
-
-
-@router.post(
-    path="/{team_id}/sync_members",
-    status_code=status.HTTP_200_OK,
-    response_model=TeamRead,
-    summary="Синхронизация списка влонтёров",
-    description="Добавляет новых участников команды и удаляет исключенных.",
-    dependencies=[
-        Depends(dependency=permission_dependency(permission=IsAdmin))
-    ],
-)
-async def sync_team_members(
-    team_id: int,
-    member_ids: list[int] = Body(..., embed=True),
-    service: TeamService = Depends(),
-) -> TeamRead:
-    try:
-        team_db = await service.sync_members(
-            team_id=team_id, member_ids=member_ids
-        )
-        return TeamRead.model_validate(team_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
     except NotAllowedError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e),
         ) from e
-    except TeamCreationError as e:
+    except TeamUpdatingError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         ) from e
 
 
