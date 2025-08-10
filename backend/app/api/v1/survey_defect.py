@@ -104,6 +104,7 @@ async def create_defect(
     defect_status: DefectStatusEnum = SurveyDefectDefaults.DEFECT_STATUS,
     files: list[UploadFile] = File(default=...),
     service: SurveyDefectService = Depends(),
+    current_user: User = Depends(current_user),
 ) -> SurveyDefectRead:
     survey_defect_in = SurveyDefectCreate(
         survey_id=survey_id,
@@ -115,8 +116,17 @@ async def create_defect(
         survey_defect_db = await service.create_with_photos(
             survey_defect_in=survey_defect_in,
             files=files,
+            user=current_user,
         )
         return SurveyDefectRead.model_validate(obj=survey_defect_db)
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except SurveyDefectCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -135,14 +145,26 @@ async def create_defect(
     ],
 )
 async def add_photos_to_defect(
-    defect_id: int, files: list[UploadFile], service: PhotoService = Depends()
+    defect_id: int,
+    files: list[UploadFile],
+    service: PhotoService = Depends(),
+    current_user: User = Depends(current_user),
 ) -> list[PhotoRead]:
     try:
         photos = await service.upload_and_link_photos(
             files=files,
             survey_defect_id=defect_id,
+            user=current_user,
         )
         return [PhotoRead.model_validate(photo) for photo in photos]
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
+        ) from e
     except PhotoCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -156,7 +178,7 @@ async def add_photos_to_defect(
     summary="Изменение обнаруженного дефекта",
     description="Изменяет поля записи дефекта по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsVolunteer))
     ],
 )
 async def update_defect(

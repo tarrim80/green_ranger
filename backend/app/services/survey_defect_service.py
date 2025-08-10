@@ -11,10 +11,15 @@ from app.core.exceptions import (
     SurveyDefectRemovingError,
     SurveyDefectUpdatingError,
 )
-from app.core.permissions import IsSurveyDefectOwnerOrCurator
+from app.core.permissions import (
+    IsSurveyDefectOwnerOrCurator,
+    IsTreeCuratorOrCorrectTeam,
+)
 from app.core.transaction_manager import atomic_transaction
-from app.models import Photo, SurveyDefect, User
+from app.models import Photo, Survey, SurveyDefect, Tree, User
+from app.repositories.survey import SurveyRepository
 from app.repositories.survey_defect import SurveyDefectRepository
+from app.repositories.tree import TreeRepository
 from app.schemas import SurveyDefectCreate, SurveyDefectUpdate
 from app.services.mixins.base_update import UpdateObjMixin
 from app.services.photo_service import PhotoService
@@ -27,9 +32,13 @@ class SurveyDefectService(UpdateObjMixin):
     def __init__(
         self,
         repo: SurveyDefectRepository = Depends(),
+        survey_repo: SurveyRepository = Depends(),
+        tree_repo: TreeRepository = Depends(),
         photo_service: PhotoService = Depends(),
     ) -> None:
         self.repo = repo
+        self.survey_repo = survey_repo
+        self.tree_repo = tree_repo
         self.photo_service = photo_service
 
     async def get_all_defects(self) -> list[SurveyDefect]:
@@ -60,10 +69,28 @@ class SurveyDefectService(UpdateObjMixin):
         self,
         survey_defect_in: SurveyDefectCreate,
         files: list[UploadFile],
+        user: User,
     ) -> SurveyDefect:
         """Создает новый дефект с привязкой фотографий."""
         saved_file_paths = []
         try:
+            survey_db = await self.survey_repo.get(
+                id=survey_defect_in.survey_id
+            )
+            if not survey_db:
+                raise NotFoundError(
+                    ExceptionDetails.get_not_found_detail(
+                        model_name=self.survey_repo.model.verbose_name(),
+                        id=survey_defect_in.survey_id,
+                    )
+                )
+            permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
+                user=user, obj=survey_db.tree
+            )
+            if not permission:
+                raise PermissionDenniedError(
+                    ExceptionDetails.NO_RIGHT_FOR_ACTION
+                )
             photos_data, saved_file_paths = await save_uploaded_images(
                 files=files
             )
@@ -84,6 +111,8 @@ class SurveyDefectService(UpdateObjMixin):
                     instance=new_survey_defect, attribute_names=["photos"]
                 )
             return new_survey_defect
+        except (NotFoundError, PermissionDenniedError):
+            raise
         except Exception as e:
             for filename in saved_file_paths:
                 os.remove(filename)
@@ -115,21 +144,21 @@ class SurveyDefectService(UpdateObjMixin):
                 )
             defect = await self.update_obj(db_obj=defect_db, obj_in=obj_in)
             return defect
-        except NotFoundError:
-            raise
-        except PermissionDenniedError:
+        except (NotFoundError, PermissionDenniedError):
             raise
         except Exception as e:
             raise SurveyDefectUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(self, defect_db: SurveyDefect) -> list[Path]:
+    async def _stage_deletion(
+        self, defect_db: SurveyDefect, user: User
+    ) -> list[Path]:
         """Подготавливает дефект и связанные фотографии к удалению."""
         paths_photo_to_delete = []
         for photo in defect_db.photos:
             paths_defect_photo = await self.photo_service._stage_deletion(
-                photo_id=photo.id
+                photo_id=photo.id, user=user
             )
             paths_photo_to_delete.extend(paths_defect_photo)
         await self.repo.remove(id=defect_db.id)
@@ -158,15 +187,13 @@ class SurveyDefectService(UpdateObjMixin):
                 )
             async with atomic_transaction(session=self.repo.session):
                 paths_photo_to_delete = await self._stage_deletion(
-                    defect_db=defect_db
+                    defect_db=defect_db, user=user
                 )
             if paths_photo_to_delete:
                 for path in paths_photo_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
-        except NotFoundError:
-            raise
-        except PermissionDenniedError:
+        except (NotFoundError, PermissionDenniedError):
             raise
         except Exception as e:
             raise SurveyDefectRemovingError(
