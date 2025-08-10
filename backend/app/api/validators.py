@@ -1,5 +1,9 @@
+from typing import TYPE_CHECKING
+
 from app.api.constants import ValidationMessages
-from app.models import User
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 def validate_leader_is_member(leader_id: int, member_ids: list[int]) -> None:
@@ -8,7 +12,7 @@ def validate_leader_is_member(leader_id: int, member_ids: list[int]) -> None:
         raise ValueError(ValidationMessages.LEADER_NOT_A_MEMBER)
 
 
-def validate_user_is_free_for_team(user: User) -> None:
+def validate_user_is_free_for_team(user: "User") -> None:
     """Проверяет, что пользователь не состоит ни в какой команде."""
     if user.team_id is not None:
         raise ValueError(ValidationMessages.NOT_ALLOWED_ADD_OTHER_TEAM)
