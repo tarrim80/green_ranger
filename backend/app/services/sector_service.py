@@ -8,10 +8,12 @@ from app.core.exceptions import (
     ExceptionDetails,
     NotAllowedError,
     NotFoundError,
+    PermissionDenniedError,
     SectorCreationError,
     SectorRemovingError,
     SectorUpdatingError,
 )
+from app.core.permissions import IsSectorCurator
 from app.core.transaction_manager import atomic_transaction
 from app.models import Sector, User
 from app.repositories.sector import SectorRepository
@@ -103,21 +105,21 @@ class SectorService(DeleteObjMixin):
                     data=shapely_geom.wkt, srid=SRID_MERCATOR_WGS84
                 )
                 update_data["geometry"] = wkt_element
-            if user.role == RoleEnum.CURATOR:
-                curator_id = (
-                    update_data.get("curator_id", None) or sector_db.curator_id
-                )
-                if curator_id != user.id:
-                    raise NotAllowedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
             async with atomic_transaction(session=self.repo.session):
                 for field, value in update_data.items():
                     setattr(sector_db, field, value)
-
+                permission = await IsSectorCurator().has_obj_permission(
+                    user=user, obj=sector_db
+                )
+                if not permission:
+                    raise PermissionDenniedError(
+                        ExceptionDetails.NO_RIGHT_FOR_ACTION
+                    )
                 self.repo.session.add(instance=sector_db)
                 await self.repo.session.flush()
                 await self.repo.session.refresh(instance=sector_db)
             return sector_db
-        except (NotFoundError, NotAllowedError):
+        except (NotFoundError, PermissionDenniedError):
             raise
         except Exception as e:
             raise SectorUpdatingError(
