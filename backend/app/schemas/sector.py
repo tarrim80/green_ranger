@@ -2,9 +2,8 @@ from typing import TYPE_CHECKING, Annotated
 
 from geoalchemy2.elements import WKBElement, WKTElement
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from shapely.geometry import mapping
-from shapely.wkb import loads as wkb_loads
-from shapely.wkt import loads as wkt_loads
+
+from app.utils.geometry_converter import geometry_to_dict
 
 if TYPE_CHECKING:
     from app.schemas import TeamShortRead, UserShortRead
@@ -87,12 +86,7 @@ class SectorRead(SectorBase):
     @field_validator("geometry", mode="before")
     @classmethod
     def parse_geometry(cls, element: WKTElement | WKBElement | dict) -> dict:
-        """Преобразует WKTElement или WKBElement из БД в GeoJSON-совместимый словарь."""
-        if isinstance(element, WKTElement):
-            return mapping(wkt_loads(element.data))
-        if isinstance(element, WKBElement):
-            return mapping(wkb_loads(element.data))
-        return element
+        return geometry_to_dict(element)
 
 
 class SectorShortRead(BaseModel):
