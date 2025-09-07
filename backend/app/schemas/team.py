@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.api.validators import validate_leader_is_member
+from app.schemas.sector import SectorShortRead
 from app.schemas.user import UserShortRead
 
 TEAM_FIELDS_CONFIG = {
@@ -27,6 +28,10 @@ TEAM_FIELDS_CONFIG = {
     "members": Field(
         description="Список волонтеров команды",
         examples=[["Иван Петров", "Данияр Ермеков", "Улжан Ахметова"]],
+    ),
+    "sectors": Field(
+        description="Список участков, за которыми закреплена команда",
+        examples=[["Орхидные", "Северный", "3"]],
     ),
 }
 
@@ -76,3 +81,4 @@ class TeamRead(TeamShortRead):
     """Схема для чтения команды с участниками."""
 
     members: Annotated[list[UserShortRead], TEAM_FIELDS_CONFIG["members"]]
+    sectors: Annotated[list[SectorShortRead], TEAM_FIELDS_CONFIG["sectors"]]
