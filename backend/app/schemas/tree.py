@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
+from geoalchemy2.elements import WKBElement, WKTElement
 from geojson_pydantic import Point
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.defaults import TreeDefaults
+from app.utils.geometry_converter import geometry_to_dict
 
 if TYPE_CHECKING:
     from app.schemas import SectorShortRead, TreeConditionEnum, UserShortRead
@@ -118,6 +120,11 @@ class TreeRead(TreeBase):
     updated_at: Annotated[datetime, TREE_FIELDS_CONFIG["updated_at"]]
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("location", mode="before")
+    @classmethod
+    def parse_geometry(cls, element: WKTElement | WKBElement | dict) -> dict:
+        return geometry_to_dict(element)
 
 
 class TreeShortRead(BaseModel):
