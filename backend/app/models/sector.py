@@ -42,6 +42,7 @@ class Sector(
     team: Mapped["Team"] = relationship("Team", back_populates="sectors")
     color: Mapped[str] = mapped_column(
         String(7),
+        # TODO: (Требует миграции) Убрать default, добавить уникальность
         default=SectorDefaults.COLOR,
         server_default=str(SectorDefaults.COLOR),
         comment="Цвет для отображения участка на карте (HEX)",
