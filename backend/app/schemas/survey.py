@@ -98,8 +98,6 @@ class SurveyCreate(SurveyBase):
 class SurveyUpdate(BaseModel):
     """Схема для обновления обследования."""
 
-    # TODO: Подумать -- нужно ли давать возможность изменять tree_id
-    tree_id: Annotated[int | None, SURVEY_FIELDS_CONFIG["tree_id"]] = None
     age: Annotated[int | None, SURVEY_FIELDS_CONFIG["age"]] = None
     height: Annotated[float | None, SURVEY_FIELDS_CONFIG["height"]] = None
     diameter: Annotated[float | None, SURVEY_FIELDS_CONFIG["diameter"]] = None
