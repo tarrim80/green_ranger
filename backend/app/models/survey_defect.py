@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Text
 from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
 from app.models.mixins.int_id_pk import IntIdPkMixin
