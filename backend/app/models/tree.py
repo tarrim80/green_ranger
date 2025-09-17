@@ -41,6 +41,7 @@ class Tree(
     distance: Mapped[float | None] = mapped_column(
         comment="Расстояние от точки привязки до растения в метрах"
     )
+    # TODO: (Требует миграции) Добавить поле location_refined (POINT)
     # TODO: (Требует миграции) Добавить в индексы (index=True)
     sector_id: Mapped[int] = mapped_column(
         ForeignKey("sector.id"),
