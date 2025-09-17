@@ -9,7 +9,12 @@ from app.schemas.defaults import TreeDefaults
 from app.utils.geometry_converter import geometry_to_dict
 
 if TYPE_CHECKING:
-    from app.schemas import SectorShortRead, TreeConditionEnum, UserShortRead
+    from app.schemas import (
+        SectorShortRead,
+        SurveyRead,
+        TreeConditionEnum,
+        UserShortRead,
+    )
 
 TREE_FIELDS_CONFIG = {
     "id": Field(description="Уникальный идентификатор", examples=[1, 2, 3]),
@@ -58,6 +63,7 @@ TREE_FIELDS_CONFIG = {
     "updated_at": Field(
         description="Дата и время последнего обновления записи"
     ),
+    "surveys": Field(description="Обследования"),
 }
 
 
@@ -118,6 +124,7 @@ class TreeRead(TreeBase):
     author: Annotated["UserShortRead", TREE_FIELDS_CONFIG["author"]]
     created_at: Annotated[datetime, TREE_FIELDS_CONFIG["created_at"]]
     updated_at: Annotated[datetime, TREE_FIELDS_CONFIG["updated_at"]]
+    surveys: Annotated[list["SurveyRead"], TREE_FIELDS_CONFIG["surveys"]]
 
     model_config = ConfigDict(from_attributes=True)
 
