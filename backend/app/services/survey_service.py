@@ -1,4 +1,5 @@
 import os
+from operator import attrgetter
 from pathlib import Path
 
 from fastapi import Depends, UploadFile
@@ -19,14 +20,13 @@ from app.core.transaction_manager import atomic_transaction
 from app.models import Photo, Survey, User
 from app.repositories.survey import SurveyRepository
 from app.repositories.tree import TreeRepository
-from app.schemas import SurveyCreate, SurveyUpdate
-from app.services.mixins import UpdateObjMixin
+from app.schemas import SurveyCreate, SurveyStatusEnum, SurveyUpdate
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
 from app.utils.photo_uploader import save_uploaded_images
 
 
-class SurveyService(UpdateObjMixin):
+class SurveyService:
     """Сервисный слой для управления обследованиями."""
 
     def __init__(
@@ -59,6 +59,19 @@ class SurveyService(UpdateObjMixin):
                 )
             )
         return survey_db
+
+    def _create_photos_in_session(
+        self, photos_data: list[dict], survey_id: int
+    ) -> None:
+        """Создает объекты Photo в текущей сессии SQLAlchemy."""
+        for photo_data in photos_data:
+            new_data = {
+                "file_path": photo_data["file_path"],
+                "thumbnail_path": photo_data["thumbnail_path"],
+                "survey_id": survey_id,
+            }
+            new_photo = Photo(**new_data)
+            self.repo.session.add(instance=new_photo)
 
     async def get_surveys_by_tree_id(self, tree_id: int) -> list[Survey]:
         """Получает все обследования для конкретного растения."""
@@ -97,16 +110,16 @@ class SurveyService(UpdateObjMixin):
             async with atomic_transaction(session=self.repo.session):
                 self.repo.session.add(instance=new_survey)
                 await self.repo.session.flush()
-                for photo_data in photos_data:
-                    new_data = {
-                        "file_path": photo_data["file_path"],
-                        "thumbnail_path": photo_data["thumbnail_path"],
-                        "survey_id": new_survey.id,
-                    }
-                    new_photo = Photo(**new_data)
-                    self.repo.session.add(instance=new_photo)
+                self._create_photos_in_session(
+                    photos_data=photos_data, survey_id=new_survey.id
+                )
                 await self.repo.session.refresh(
-                    instance=new_survey, attribute_names=["tree_photos"]
+                    instance=new_survey,
+                    attribute_names=[
+                        "tree_photos",
+                        "survey_defects",
+                        "author",
+                    ],
                 )
             return new_survey
         except (NotFoundError, PermissionDenniedError):
@@ -118,33 +131,105 @@ class SurveyService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY}: {e}"
             )
 
-    async def update_survey(
-        self, obj_id: int, obj_in: SurveyUpdate, user: User
+    async def _get_survey_and_check_permissions(
+        self, survey_id: int, user: User
+    ) -> Survey:
+        """
+        Получает обследование по ID, проверяет его существование
+        и права доступа пользователя.
+        """
+        survey_db = await self.repo.get(id=survey_id)
+        if not survey_db:
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name=self.repo.model.verbose_name(), id=survey_id
+                )
+            )
+        permission = await IsSurveyOwnerOrCurator().has_obj_permission(
+            user=user, obj=survey_db
+        )
+        if not permission:
+            raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
+        return survey_db
+
+    async def _update_tree_condition_on_approval(
+        self, survey_db: Survey
+    ) -> None:
+        """
+        Обновляет состояние дерева, если одобрено последнее обследование.
+        """
+        tree_db = await self.tree_repo.get(survey_db.tree_id)
+        if not tree_db:
+            raise NotFoundError(
+                ExceptionDetails.get_not_found_detail(
+                    model_name=self.tree_repo.model.verbose_name(),
+                    id=survey_db.tree_id,
+                )
+            )
+
+        actual_survey = max(tree_db.surveys, key=attrgetter("created_at"))
+        if actual_survey.id == survey_db.id:
+            tree_db.condition = survey_db.condition
+            tree_db.is_emergency = survey_db.is_emergency_report
+            self.repo.session.add(instance=tree_db)
+            await self.repo.session.flush()
+            await self.repo.session.refresh(
+                instance=tree_db,
+                attribute_names=["sector", "surveys", "author", "updated_at"],
+            )
+
+    async def update_survey_with_photos(
+        self,
+        obj_id: int,
+        obj_in: SurveyUpdate,
+        user: User,
+        files: list[UploadFile] | None,
     ) -> Survey:
         """
         Обновляет данные существующего обследования с проверкой прав доступа.
         """
+        saved_file_paths = []
+        photos_data = []
+        tree_db = None
         try:
-            survey_db = await self.repo.get(id=obj_id)
-            if not survey_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=obj_id,
-                    )
-                )
-            permission = await IsSurveyOwnerOrCurator().has_obj_permission(
-                user=user, obj=survey_db
+            survey_db = await self._get_survey_and_check_permissions(
+                survey_id=obj_id, user=user
             )
-            if not permission:
-                raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHT_FOR_ACTION
+            if files:
+                photos_data, saved_file_paths = await save_uploaded_images(
+                    files=files
                 )
-            survey = await self.update_obj(db_obj=survey_db, obj_in=obj_in)
-            return survey
+            update_data = obj_in.model_dump(exclude_unset=True)
+
+            async with atomic_transaction(session=self.repo.session):
+                for field, value in update_data.items():
+                    setattr(survey_db, field, value)
+                self.repo.session.add(instance=survey_db)
+
+                if survey_db.survey_status == SurveyStatusEnum.APPROVED:
+                    await self._update_tree_condition_on_approval(
+                        survey_db=survey_db
+                    )
+
+                await self.repo.session.flush()
+                self._create_photos_in_session(
+                    photos_data=photos_data, survey_id=survey_db.id
+                )
+                await self.repo.session.refresh(
+                    instance=survey_db,
+                    attribute_names=[
+                        "tree_photos",
+                        "survey_defects",
+                        "author",
+                        "updated_at",
+                    ],
+                )
+            return survey_db
         except (NotFoundError, PermissionDenniedError):
             raise
         except Exception as e:
+            for filename in saved_file_paths:
+                os.remove(filename)
             raise SurveyUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
@@ -179,20 +264,9 @@ class SurveyService(UpdateObjMixin):
         Удаляет обследование и все связанные с ним данные с проверкой прав.
         """
         try:
-            survey_db = await self.repo.get(id=survey_id)
-            if not survey_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(), id=survey_id
-                    )
-                )
-            permission = await IsSurveyOwnerOrCurator().has_obj_permission(
-                user=user, obj=survey_db
+            survey_db = await self._get_survey_and_check_permissions(
+                survey_id=survey_id, user=user
             )
-            if not permission:
-                raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHT_FOR_ACTION
-                )
             async with atomic_transaction(session=self.repo.session):
                 paths_photo_to_delete = await self._stage_deletion(
                     survey_db=survey_db, user=user
