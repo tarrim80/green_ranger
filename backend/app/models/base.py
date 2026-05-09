@@ -1,8 +1,17 @@
+from typing import Protocol
+
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 
 from app.core.config import settings
 from app.utils.case_converter import camel_case_to_snake_case
+
+
+class VerboseModel(Protocol):
+    @classmethod
+    def verbose_name(cls) -> str: ...
+    @classmethod
+    def verbose_name_plural(cls) -> str: ...
 
 
 class Base(DeclarativeBase):
