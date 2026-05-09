@@ -91,7 +91,7 @@ class TreeService:
                 new_tree = self.repo.model(**tree_data)
                 self.repo.session.add(instance=new_tree)
                 await self.repo.session.flush()
-            return new_tree
+            return await self.get_tree(obj_id=new_tree.id)
         except Exception as e:
             raise TreeCreationError(
                 ExceptionDetails.FAILED_CREATE_RECORD
@@ -132,8 +132,7 @@ class TreeService:
                     setattr(tree_db, field, value)
                 self.repo.session.add(instance=tree_db)
                 await self.repo.session.flush()
-                await self.repo.session.refresh(instance=tree_db)
-            return tree_db
+            return await self.get_tree(obj_id=tree_db.id)
         except NotFoundError:
             raise
         except PermissionDenniedError:
