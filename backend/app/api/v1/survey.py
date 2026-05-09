@@ -9,10 +9,8 @@ from fastapi import (
 )
 
 from app.core.exceptions import (
-    ExceptionDetails,
     NotFoundError,
     PermissionDenniedError,
-    PhotoCreationError,
     SurveyCreationError,
     SurveyRemovingError,
     SurveyUpdatingError,
@@ -21,14 +19,13 @@ from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
 from app.core.user import current_user
 from app.models import User
 from app.schemas import (
-    PhotoRead,
     SurveyCreate,
     SurveyRead,
+    SurveyStatusEnum,
     SurveyUpdate,
     TreeConditionEnum,
 )
 from app.schemas.defaults import SurveyDefaults
-from app.services.photo_service import PhotoService
 from app.services.survey_service import SurveyService
 
 router = APIRouter()
@@ -108,7 +105,7 @@ async def create_survey(
     ),
     note: str | None = Form(default=None),
     files: list[UploadFile] = File(default=...),
-    current_user: User = Depends(dependency=current_user),
+    current_user: "User" = Depends(dependency=current_user),
     service: SurveyService = Depends(),
 ) -> SurveyRead:
     survey_in = SurveyCreate(
@@ -143,45 +140,6 @@ async def create_survey(
         )
 
 
-@router.post(
-    path="/surveys/{survey_id}/tree_photos",
-    response_model=list[PhotoRead],
-    status_code=status.HTTP_201_CREATED,
-    summary="Добавление фотографий растения",
-    description="Загружает одну или несколько фотографий общего вида\
-        растения и привязывает их к существующему обследованию.",
-    dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
-    ],
-)
-async def add_tree_photos_to_survey(
-    survey_id: int,
-    files: list[UploadFile],
-    service: PhotoService = Depends(),
-    current_user: User = Depends(dependency=current_user),
-) -> list[PhotoRead]:
-    try:
-        tree_photos = await service.upload_and_link_photos(
-            files=files,
-            survey_id=survey_id,
-            user=current_user,
-        )
-        return [PhotoRead.model_validate(photo) for photo in tree_photos]
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
-    except PhotoCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"{ExceptionDetails.FAILED_CREATE_PHOTO} {e}",
-        )
-
-
 @router.patch(
     path="/surveys/{survey_id}",
     response_model=SurveyRead,
@@ -193,13 +151,34 @@ async def add_tree_photos_to_survey(
 )
 async def update_survey(
     survey_id: int,
-    survey_in: SurveyUpdate,
+    age: int | None = Form(default=None),
+    height: float | None = Form(default=None),
+    diameter: float | None = Form(default=None),
+    trunk_count: int | None = Form(default=None),
+    condition: TreeConditionEnum | None = Form(default=None),
+    is_emergency_report: bool | None = Form(default=None),
+    note: str | None = Form(default=None),
+    files: list[UploadFile] | None = File(default=None),
+    survey_status: SurveyStatusEnum | None = Form(default=None),
+    current_user: User = Depends(dependency=current_user),
     service: SurveyService = Depends(),
-    user: User = Depends(dependency=current_user),
 ) -> SurveyRead:
     try:
-        survey_update_db = await service.update_survey(
-            obj_id=survey_id, obj_in=survey_in, user=user
+        survey_update_in = SurveyUpdate(
+            age=age,
+            height=height,
+            diameter=diameter,
+            trunk_count=trunk_count,
+            condition=condition,
+            is_emergency_report=is_emergency_report,
+            note=note,
+            survey_status=survey_status,
+        )
+        survey_update_db = await service.update_survey_with_photos(
+            obj_id=survey_id,
+            obj_in=survey_update_in,
+            user=current_user,
+            files=files,
         )
         return SurveyRead.model_validate(obj=survey_update_db)
     except NotFoundError as e:
