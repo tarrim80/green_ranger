@@ -5,8 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_LIMIT
+from app.models.base import VerboseModel
 
-TModel = TypeVar("TModel")
+TModel = TypeVar("TModel", bound=VerboseModel)
 TCreate = TypeVar("TCreate", bound=BaseModel)
 TUpdate = TypeVar("TUpdate", bound=BaseModel)
 
