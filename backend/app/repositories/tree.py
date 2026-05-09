@@ -48,7 +48,7 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
         return result.scalars().all()
 
     async def get(self, id: int) -> Tree | None:
-        """Получает команду по ID с загрузкой участников."""
+        """Получает растение по ID с загрузкой обследований."""
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.sector))
@@ -71,7 +71,7 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
     async def get_multi(
         self, skip: int = 0, limit: int = DEFAULT_LIMIT
     ) -> Sequence[Tree]:
-        """Получает список команд с загрузкой участников."""
+        """Получает список растений с загрузкой обследований."""
         result = await self.session.execute(
             statement=select(self.model)
             .options(selectinload(self.model.sector))
