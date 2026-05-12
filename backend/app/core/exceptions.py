@@ -216,6 +216,7 @@ class ExceptionDetails:
     NOT_ALLOWED_REMOVE_LEADER_TEAM = "Невозможно исключить лидера из команды. Сначала назначьте нового лидера команды."
     NOT_FOUND_OR_NOT_ACTIVE_USER = "Пользователь не найден или неактивен"
     NOT_FOUND_SOME_USERS = "Не найдены один или несколько пользователей"
+    REQUIRED_EXACTLY_ONE_LINK_ID = "Необходимо указать ровно один ID (вид дефекта, обследование или дефект)."
     TREE_LOCATION_OUTSIDE_OF_SECTOR = (
         "Координаты дерева находятся вне границ указанного участка."
     )
