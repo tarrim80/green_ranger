@@ -1,8 +1,6 @@
 from fastapi import Depends
 from geoalchemy2.elements import WKTElement
-from geoalchemy2.functions import ST_Contains
 from shapely.geometry import shape
-from sqlalchemy import select
 
 from app.core.constants import SRID_MERCATOR_WGS84
 from app.core.exceptions import (
@@ -13,12 +11,8 @@ from app.core.exceptions import (
     TreeCreationError,
     TreeUpdatingError,
 )
-from app.core.permissions import (
-    IsSectorCuratorOrCorrectTeam,
-    IsTreeCuratorOrCorrectTeam,
-)
 from app.core.transaction_manager import atomic_transaction
-from app.models import Tree, User
+from app.models import Sector, Tree
 from app.repositories.sector import SectorRepository
 from app.repositories.tree import TreeRepository
 from app.schemas import TreeCreateWithAuthor, TreeUpdate
@@ -61,29 +55,16 @@ class TreeService:
     #       дерева
 
     async def create_tree(
-        self, obj_in: TreeCreateWithAuthor, user: User
+        self, obj_in: TreeCreateWithAuthor, sector: Sector
     ) -> Tree:
         """Создает новое растение."""
-        sector = await self.sector_repo.get(id=obj_in.sector_id)
-        if not sector:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.sector_repo.model.verbose_name(),
-                    id=obj_in.sector_id,
-                )
-            )
-        permission = await IsSectorCuratorOrCorrectTeam().has_obj_permission(
-            user=user, obj=sector
-        )
-        if not permission:
-            raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
         tree_data = obj_in.model_dump()
         if "location" in tree_data and isinstance(tree_data["location"], dict):
             shapely_point = shape(tree_data["location"])
             tree_data["location"] = WKTElement(
                 shapely_point.wkt, srid=SRID_MERCATOR_WGS84
             )
-            await self._validate_location_in_sector(
+            await self.repo.validate_location_in_sector(
                 wkt_location=tree_data["location"], sector=sector
             )
         try:
@@ -97,33 +78,16 @@ class TreeService:
                 ExceptionDetails.FAILED_CREATE_RECORD
             ) from e
 
-    async def update_tree(
-        self, obj_id: int, obj_in: TreeUpdate, user: User
-    ) -> Tree:
+    async def update_tree(self, obj_in: TreeUpdate, tree_db: Tree) -> Tree:
         """Обновляет данные существующего растения с проверкой прав доступа."""
         try:
-            tree_db = await self.repo.get(id=obj_id)
-            if not tree_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=obj_id,
-                    )
-                )
-            permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
-                user=user, obj=tree_db
-            )
-            if not permission:
-                raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHT_FOR_ACTION
-                )
             update_data = obj_in.model_dump(exclude_unset=True)
             if location := update_data.get("location", None):
                 shapely_point = shape(location)
                 wkt_location = WKTElement(
                     shapely_point.wkt, srid=SRID_MERCATOR_WGS84
                 )
-                await self._validate_location_in_sector(
+                await self.repo.validate_location_in_sector(
                     wkt_location=wkt_location, sector=tree_db.sector
                 )
                 update_data["location"] = wkt_location
@@ -145,13 +109,3 @@ class TreeService:
     async def delete_tree(self, tree_id: int) -> None:
         """Запрещает прямое удаление растения."""
         raise NotAllowedError(ExceptionDetails.NOT_ALLOWED_REMOVE_TREES)
-
-    async def _validate_location_in_sector(self, wkt_location, sector) -> None:
-        """
-        Проверяет что местоположение растения входит в обозначенный участок.
-        """
-        stmt = select(ST_Contains(sector.geometry, wkt_location))
-        result = await self.repo.session.execute(stmt)
-        is_contained = result.scalar()
-        if not is_contained:
-            raise ValueError(ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR)

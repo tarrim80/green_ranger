@@ -1,13 +1,15 @@
 from typing import Annotated, Sequence
 
 from fastapi import Depends
+from geoalchemy2.functions import ST_Contains
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
-from app.models import Survey, Tree
+from app.core.exceptions import ExceptionDetails
+from app.models import Sector, Survey, Tree
 from app.repositories.base import BaseRepository
 from app.schemas import TreeCreate, TreeUpdate
 
@@ -91,3 +93,15 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
             .limit(limit=limit)
         )
         return result.scalars().all()
+
+    async def validate_location_in_sector(
+        self, wkt_location, sector: Sector
+    ) -> None:
+        """
+        Проверяет что местоположение растения входит в обозначенный участок.
+        """
+        stmt = select(ST_Contains(sector.geometry, wkt_location))
+        result = await self.session.execute(stmt)
+        is_contained = result.scalar()
+        if not is_contained:
+            raise ValueError(ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR)
