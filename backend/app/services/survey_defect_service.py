@@ -151,14 +151,12 @@ class SurveyDefectService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(
-        self, defect_db: SurveyDefect, user: User
-    ) -> list[Path]:
+    async def _stage_deletion(self, defect_db: SurveyDefect) -> list[Path]:
         """Подготавливает дефект и связанные фотографии к удалению."""
         paths_photo_to_delete = []
         for photo in defect_db.photos:
             paths_defect_photo = await self.photo_service._stage_deletion(
-                photo_id=photo.id, user=user
+                photo_id=photo.id
             )
             paths_photo_to_delete.extend(paths_defect_photo)
         await self.repo.remove(id=defect_db.id)
@@ -187,7 +185,7 @@ class SurveyDefectService(UpdateObjMixin):
                 )
             async with atomic_transaction(session=self.repo.session):
                 paths_photo_to_delete = await self._stage_deletion(
-                    defect_db=defect_db, user=user
+                    defect_db=defect_db
                 )
             if paths_photo_to_delete:
                 for path in paths_photo_to_delete:

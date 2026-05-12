@@ -234,9 +234,7 @@ class SurveyService:
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(
-        self, survey_db: Survey, user: User
-    ) -> list[Path]:
+    async def _stage_deletion(self, survey_db: Survey) -> list[Path]:
         """
         Подготавливает обследование и все связанные с ним данные к удалению.
         """
@@ -244,7 +242,7 @@ class SurveyService:
         for survey_defect in survey_db.survey_defects:
             path_defect_photo_to_delete = (
                 await self.defect_service._stage_deletion(
-                    defect_db=survey_defect, user=user
+                    defect_db=survey_defect
                 )
             )
             if path_defect_photo_to_delete:
@@ -252,7 +250,7 @@ class SurveyService:
         for tree_photo in survey_db.tree_photos:
             paths_tree_photo_to_delete = (
                 await self.photo_service._stage_deletion(
-                    photo_id=tree_photo.id, user=user
+                    photo_id=tree_photo.id
                 )
             )
             paths_photo_to_delete.extend(paths_tree_photo_to_delete)
@@ -269,7 +267,7 @@ class SurveyService:
             )
             async with atomic_transaction(session=self.repo.session):
                 paths_photo_to_delete = await self._stage_deletion(
-                    survey_db=survey_db, user=user
+                    survey_db=survey_db
                 )
             if paths_photo_to_delete:
                 for path in paths_photo_to_delete:
