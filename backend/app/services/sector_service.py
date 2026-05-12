@@ -8,16 +8,14 @@ from app.core.exceptions import (
     ExceptionDetails,
     NotAllowedError,
     NotFoundError,
-    PermissionDenniedError,
     SectorCreationError,
     SectorRemovingError,
     SectorUpdatingError,
 )
-from app.core.permissions import IsSectorCurator
 from app.core.transaction_manager import atomic_transaction
-from app.models import Sector, User
+from app.models import Sector
 from app.repositories.sector import SectorRepository
-from app.schemas import RoleEnum, SectorCreate, SectorUpdate
+from app.schemas import SectorCreate, SectorUpdate
 from app.services.mixins import DeleteObjMixin
 
 
@@ -50,7 +48,7 @@ class SectorService(DeleteObjMixin):
         return sector_db
 
     async def create_sector(
-        self, sector_in: SectorCreate, user: User
+        self, sector_in: SectorCreate, curator_id: int | None = None
     ) -> Sector:
         """Создает новый учетный участок."""
         shapely_geom = shape(context=sector_in.geometry)
@@ -59,8 +57,8 @@ class SectorService(DeleteObjMixin):
         )
         sector_data = sector_in.model_dump()
         sector_data["geometry"] = wkt_element
-        if user.role == RoleEnum.CURATOR:
-            sector_data["curator_id"] = user.id
+        if curator_id:
+            sector_data["curator_id"] = curator_id
         try:
             async with atomic_transaction(session=self.repo.session):
                 new_sector = self.repo.model(**sector_data)
@@ -86,19 +84,13 @@ class SectorService(DeleteObjMixin):
             ) from e
 
     async def update_sector(
-        self, obj_id: int, obj_in: SectorUpdate, user: User
+        self,
+        sector_db: Sector,
+        obj_in: SectorUpdate,
     ) -> Sector:
         """Обновляет данные существующего учетного участка."""
         try:
-            sector_db: Sector = await self.repo.get(id=obj_id)
-            if not sector_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=obj_id,
-                    )
-                )
-            update_data = obj_in.model_dump()
+            update_data = obj_in.model_dump(exclude_unset=True)
             if geometry_dict := update_data.get("geometry", None):
                 shapely_geom = shape(context=geometry_dict)
                 wkt_element = WKTElement(
@@ -108,18 +100,11 @@ class SectorService(DeleteObjMixin):
             async with atomic_transaction(session=self.repo.session):
                 for field, value in update_data.items():
                     setattr(sector_db, field, value)
-                permission = await IsSectorCurator().has_obj_permission(
-                    user=user, obj=sector_db
-                )
-                if not permission:
-                    raise PermissionDenniedError(
-                        ExceptionDetails.NO_RIGHT_FOR_ACTION
-                    )
                 self.repo.session.add(instance=sector_db)
                 await self.repo.session.flush()
                 await self.repo.session.refresh(instance=sector_db)
             return sector_db
-        except (NotFoundError, PermissionDenniedError):
+        except NotFoundError:
             raise
         except Exception as e:
             raise SectorUpdatingError(

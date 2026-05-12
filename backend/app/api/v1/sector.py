@@ -4,14 +4,20 @@ from fastapi.routing import APIRouter
 from app.core.exceptions import (
     NotAllowedError,
     NotFoundError,
+    PermissionDenniedError,
     SectorCreationError,
     SectorRemovingError,
     SectorUpdatingError,
 )
-from app.core.permissions import IsAdmin, IsCurator, permission_dependency
+from app.core.permissions import (
+    IsAdmin,
+    IsCurator,
+    IsSectorCurator,
+    permission_dependency,
+)
 from app.core.user import current_user
 from app.models import User
-from app.schemas import SectorCreate, SectorRead, SectorUpdate
+from app.schemas import RoleEnum, SectorCreate, SectorRead, SectorUpdate
 from app.services.sector_service import SectorService
 
 router = APIRouter()
@@ -66,9 +72,13 @@ async def create_sector(
     current_user: User = Depends(current_user),
 ) -> SectorRead:
     try:
-        sector_db = await service.create_sector(
-            sector_in=sector_in, user=current_user
-        )
+        if current_user.role == RoleEnum.CURATOR:
+            curator_id = current_user.id
+            sector_db = await service.create_sector(
+                sector_in=sector_in, curator_id=curator_id
+            )
+        else:
+            sector_db = await service.create_sector(sector_in=sector_in)
         return SectorRead.model_validate(obj=sector_db)
     except SectorCreationError as e:
         raise HTTPException(
@@ -94,8 +104,14 @@ async def update_sector(
     current_user: User = Depends(current_user),
 ) -> SectorRead:
     try:
+        sector_db = await service.get_sector(obj_id=sector_id)
+        permission = await IsSectorCurator().has_obj_permission(
+            user=current_user, obj=sector_db
+        )
+        if not permission:
+            raise PermissionDenniedError
         sector_update_db = await service.update_sector(
-            obj_id=sector_id, obj_in=sector_in, user=current_user
+            sector_db=sector_db, obj_in=sector_in
         )
         return SectorRead.model_validate(obj=sector_update_db)
     except NotFoundError as e:
@@ -105,6 +121,11 @@ async def update_sector(
     except NotAllowedError as e:
         raise HTTPException(
             status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            detail=str(e),
+        ) from e
+    except PermissionDenniedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
         ) from e
     except SectorUpdatingError as e:
