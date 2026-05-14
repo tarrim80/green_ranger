@@ -13,6 +13,8 @@ from app.core.exceptions import (
 from app.core.permissions import IsAdmin, permission_dependency
 from app.core.user import current_user
 from app.models import User
+from app.models.defect_type import DefectType
+from app.repositories import DefectTypeRepository
 from app.schemas import (
     DefectTypeCreate,
     DefectTypeRead,
@@ -21,6 +23,22 @@ from app.schemas import (
 )
 from app.services.defect_type_service import DefectTypeService
 from app.services.photo_service import PhotoService
+
+
+async def get_defect_type_db(
+    defect_type_id: int, defect_repo: DefectTypeRepository = Depends()
+) -> DefectType:
+    """Получает вид дефекта по его идентификатору."""
+    defect_type_db = await defect_repo.get(id=defect_type_id)
+    if not defect_type_db:
+        raise NotFoundError(
+            ExceptionDetails.get_not_found_detail(
+                model_name=defect_repo.model.verbose_name(),
+                id=defect_type_id,
+            )
+        )
+    return defect_type_db
+
 
 router = APIRouter()
 
@@ -48,16 +66,9 @@ async def get_all_defect_types(
     description="Показывает вид дефекта по идентификатору (id).",
 )
 async def get_defect_type(
-    defect_type_id: int,
-    service: DefectTypeService = Depends(),
+    defect_type_db: DefectType = Depends(get_defect_type_db),
 ) -> DefectTypeRead:
-    try:
-        defect_type_db = await service.get_defect_type(obj_id=defect_type_id)
-        return DefectTypeRead.model_validate(obj=defect_type_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+    return DefectTypeRead.model_validate(obj=defect_type_db)
 
 
 @router.post(
@@ -107,13 +118,11 @@ async def add_images_to_defect_type(
     defect_type_id: int,
     files: list[UploadFile],
     service: PhotoService = Depends(),
-    current_user: User = Depends(dependency=current_user),
 ) -> list[PhotoRead]:
     try:
         images = await service.upload_and_link_photos(
             files=files,
             defect_type_id=defect_type_id,
-            user=current_user,
         )
         return [PhotoRead.model_validate(image) for image in images]
     except PermissionDenniedError as e:
@@ -139,17 +148,14 @@ async def add_images_to_defect_type(
 async def update_defect_type(
     defect_type_id: int,
     defect_type_in: DefectTypeUpdate,
+    defect_type_db: DefectType = Depends(get_defect_type_db),
     service: DefectTypeService = Depends(),
 ) -> DefectTypeRead:
     try:
         defect_type_update_db = await service.update_defect_type(
-            obj_id=defect_type_id, obj_in=defect_type_in
+            defect_type_db=defect_type_db, obj_in=defect_type_in
         )
         return DefectTypeRead.model_validate(obj=defect_type_update_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
     except DefectTypeUpdatingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -167,21 +173,11 @@ async def update_defect_type(
 )
 async def delete_defect_type(
     defect_type_id: int,
+    defect_type_db: DefectType = Depends(get_defect_type_db),
     service: DefectTypeService = Depends(),
-    current_user: User = Depends(dependency=current_user),
 ) -> None:
     try:
-        await service.delete_with_images(
-            defect_type_id=defect_type_id, user=current_user
-        )
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
+        await service.delete_with_images(defect_type_db=defect_type_db)
     except DefectTypeRemovingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)

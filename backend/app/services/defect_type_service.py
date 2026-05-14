@@ -36,18 +36,6 @@ class DefectTypeService(UpdateObjMixin):
         defect_types_db = await self.repo.get_multi()
         return defect_types_db
 
-    async def get_defect_type(self, obj_id: int) -> DefectType:
-        """Получает вид дефекта по его идентификатору."""
-        defect_type_db = await self.repo.get(id=obj_id)
-        if not defect_type_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(),
-                    id=obj_id,
-                )
-            )
-        return defect_type_db
-
     async def create_with_photos(
         self,
         defect_type_in: DefectTypeCreate,
@@ -65,16 +53,9 @@ class DefectTypeService(UpdateObjMixin):
             new_defect_type = DefectType(**new_data)
             async with atomic_transaction(session=self.repo.session):
                 self.repo.session.add(instance=new_defect_type)
-                await self.repo.session.flush()
-                if photos_data:
-                    for photo_data in photos_data:
-                        new_data = {
-                            "file_path": photo_data["file_path"],
-                            "thumbnail_path": photo_data["thumbnail_path"],
-                            "defect_type_id": new_defect_type.id,
-                        }
-                        new_photo = Photo(**new_data)
-                        self.repo.session.add(instance=new_photo)
+                await self.photo_service.create_photo_batch(
+                    photos_data=photos_data, defect_type_id=new_defect_type.id
+                )
                 await self.repo.session.refresh(
                     instance=new_defect_type, attribute_names=["images"]
                 )
@@ -91,61 +72,41 @@ class DefectTypeService(UpdateObjMixin):
             )
 
     async def update_defect_type(
-        self, obj_id: int, obj_in: DefectTypeUpdate
+        self, defect_type_db: DefectType, obj_in: DefectTypeUpdate
     ) -> DefectType:
         """Обновляет данные существующего вида дефекта."""
         try:
-            defect_type_db = await self.repo.get(id=obj_id)
-            if not defect_type_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=obj_id,
-                    )
-                )
             defect_type = await self.update_obj(
                 db_obj=defect_type_db, obj_in=obj_in
             )
             return defect_type
-        except NotFoundError:
-            raise
         except Exception as e:
             raise DefectTypeUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def _stage_deletion(self, defect_type_id: int) -> list[Path]:
+    async def _stage_deletion(self, defect_type_db: DefectType) -> list[Path]:
         """Подготавливает вид дефекта и связанные изображения к удалению."""
-        defect_type_db = await self.repo.get(id=defect_type_id)
-        if not defect_type_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(),
-                    id=defect_type_id,
-                )
-            )
         paths_image_to_delete = []
         for image in defect_type_db.images:
             paths_defect_type_image = await self.photo_service._stage_deletion(
                 photo_id=image.id
             )
             paths_image_to_delete.extend(paths_defect_type_image)
-        await self.repo.remove(id=defect_type_id)
+        await self.repo.remove(id=defect_type_db.id)
         return paths_image_to_delete
 
-    async def delete_with_images(self, defect_type_id: int) -> None:
+    async def delete_with_images(self, defect_type_db: DefectType) -> None:
         """Удаляет вид дефекта и все связанные с ним изображения."""
         try:
             async with atomic_transaction(session=self.repo.session):
                 paths_image_to_delete = await self._stage_deletion(
-                    defect_type_id=defect_type_id
+                    defect_type_db=defect_type_db
                 )
             if paths_image_to_delete:
                 for path in paths_image_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
-        except NotFoundError:
-            raise
         except Exception as e:
             raise DefectTypeRemovingError(
                 f"{ExceptionDetails.FAILED_REMOVE_DEFECT_TYPE}: {e}"
