@@ -9,15 +9,24 @@ from fastapi import (
 )
 
 from app.core.exceptions import (
+    ExceptionDetails,
     NotFoundError,
     PermissionDenniedError,
     SurveyCreationError,
     SurveyRemovingError,
     SurveyUpdatingError,
 )
-from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
+from app.core.permissions import (
+    IsCurator,
+    IsSurveyOwnerOrCurator,
+    IsTreeCuratorOrCorrectTeam,
+    IsVolunteer,
+    permission_dependency,
+)
 from app.core.user import current_user
-from app.models import User
+from app.models import Survey, User
+from app.models.tree import Tree
+from app.repositories import SurveyRepository, TreeRepository
 from app.schemas import (
     SurveyCreate,
     SurveyRead,
@@ -27,6 +36,56 @@ from app.schemas import (
 )
 from app.schemas.defaults import SurveyDefaults
 from app.services.survey_service import SurveyService
+
+
+async def get_survey_and_check_permissions(
+    survey_id: int,
+    survey_repo: SurveyRepository = Depends(),
+    user: User = Depends(current_user),
+) -> Survey:
+    """
+    Получает обследование по ID, проверяет его существование
+    и права доступа пользователя.
+    """
+    survey_db = await survey_repo.get(id=survey_id)
+    if not survey_db:
+        raise NotFoundError(
+            ExceptionDetails.get_not_found_detail(
+                model_name=survey_repo.model.verbose_name(), id=survey_id
+            )
+        )
+    permission = await IsSurveyOwnerOrCurator().has_obj_permission(
+        user=user, obj=survey_db
+    )
+    if not permission:
+        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
+    return survey_db
+
+
+async def get_tree_and_check_permissions(
+    tree_id: int = Form(default=...),
+    tree_repo: TreeRepository = Depends(),
+    user: User = Depends(current_user),
+) -> Tree:
+    """
+    Получает растение по ID, проверяет его существование
+    и права доступа пользователя.
+    """
+    tree_db = await tree_repo.get(tree_id)
+    if not tree_db:
+        raise NotFoundError(
+            ExceptionDetails.get_not_found_detail(
+                model_name=tree_repo.model.verbose_name(),
+                id=tree_id,
+            )
+        )
+    permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
+        user=user, obj=tree_db
+    )
+    if not permission:
+        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
+    return tree_db
+
 
 router = APIRouter()
 
@@ -94,7 +153,7 @@ async def get_surveys_by_tree_id(
     ],
 )
 async def create_survey(
-    tree_id: int = Form(default=...),
+    tree_db: Tree = Depends(get_tree_and_check_permissions),
     age: int | None = Form(default=None),
     height: float | None = Form(default=None),
     diameter: float | None = Form(default=None),
@@ -109,7 +168,7 @@ async def create_survey(
     service: SurveyService = Depends(),
 ) -> SurveyRead:
     survey_in = SurveyCreate(
-        tree_id=tree_id,
+        tree_id=tree_db.id,
         age=age,
         height=height,
         diameter=diameter,
@@ -123,17 +182,8 @@ async def create_survey(
         survey_db = await service.create_with_photos(
             survey_in=survey_in,
             files=files,
-            user=current_user,
         )
         return SurveyRead.model_validate(obj=survey_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
     except SurveyCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -151,6 +201,7 @@ async def create_survey(
 )
 async def update_survey(
     survey_id: int,
+    survey_db: Survey = Depends(get_survey_and_check_permissions),
     age: int | None = Form(default=None),
     height: float | None = Form(default=None),
     diameter: float | None = Form(default=None),
@@ -160,7 +211,6 @@ async def update_survey(
     note: str | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
     survey_status: SurveyStatusEnum | None = Form(default=None),
-    current_user: User = Depends(dependency=current_user),
     service: SurveyService = Depends(),
 ) -> SurveyRead:
     try:
@@ -175,20 +225,11 @@ async def update_survey(
             survey_status=survey_status,
         )
         survey_update_db = await service.update_survey_with_photos(
-            obj_id=survey_id,
+            survey_db=survey_db,
             obj_in=survey_update_in,
-            user=current_user,
             files=files,
         )
         return SurveyRead.model_validate(obj=survey_update_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
     except SurveyUpdatingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -205,20 +246,11 @@ async def update_survey(
     ],
 )
 async def delete_survey(
-    survey_id: int,
+    survey_db: Survey = Depends(get_survey_and_check_permissions),
     service: SurveyService = Depends(),
-    user: User = Depends(current_user),
 ) -> None:
     try:
-        await service.delete_with_photos(survey_id=survey_id, user=user)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
+        await service.delete_with_photos(survey_db=survey_db)
     except SurveyRemovingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

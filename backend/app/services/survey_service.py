@@ -12,12 +12,8 @@ from app.core.exceptions import (
     SurveyRemovingError,
     SurveyUpdatingError,
 )
-from app.core.permissions import (
-    IsSurveyOwnerOrCurator,
-    IsTreeCuratorOrCorrectTeam,
-)
 from app.core.transaction_manager import atomic_transaction
-from app.models import Photo, Survey, User
+from app.models import Survey
 from app.repositories.survey import SurveyRepository
 from app.repositories.tree import TreeRepository
 from app.schemas import SurveyCreate, SurveyStatusEnum, SurveyUpdate
@@ -60,19 +56,6 @@ class SurveyService:
             )
         return survey_db
 
-    def _create_photos_in_session(
-        self, photos_data: list[dict], survey_id: int
-    ) -> None:
-        """Создает объекты Photo в текущей сессии SQLAlchemy."""
-        for photo_data in photos_data:
-            new_data = {
-                "file_path": photo_data["file_path"],
-                "thumbnail_path": photo_data["thumbnail_path"],
-                "survey_id": survey_id,
-            }
-            new_photo = Photo(**new_data)
-            self.repo.session.add(instance=new_photo)
-
     async def get_surveys_by_tree_id(self, tree_id: int) -> list[Survey]:
         """Получает все обследования для конкретного растения."""
         surveys_db = await self.repo.get_all_by_tree_id(tree_id=tree_id)
@@ -82,26 +65,10 @@ class SurveyService:
         self,
         survey_in: SurveyCreate,
         files: list[UploadFile],
-        user: User,
     ) -> Survey:
         """Создает новое обследование с привязкой фотографий."""
         saved_file_paths = []
         try:
-            tree_db = await self.tree_repo.get(survey_in.tree_id)
-            if not tree_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.tree_repo.model.verbose_name(),
-                        id=survey_in.tree_id,
-                    )
-                )
-            permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
-                user=user, obj=tree_db
-            )
-            if not permission:
-                raise PermissionDenniedError(
-                    ExceptionDetails.NO_RIGHT_FOR_ACTION
-                )
             photos_data, saved_file_paths = await save_uploaded_images(
                 files=files
             )
@@ -110,7 +77,7 @@ class SurveyService:
             async with atomic_transaction(session=self.repo.session):
                 self.repo.session.add(instance=new_survey)
                 await self.repo.session.flush()
-                self._create_photos_in_session(
+                await self.photo_service.create_photo_batch(
                     photos_data=photos_data, survey_id=new_survey.id
                 )
                 await self.repo.session.refresh(
@@ -130,27 +97,6 @@ class SurveyService:
             raise SurveyCreationError(
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY}: {e}"
             )
-
-    async def _get_survey_and_check_permissions(
-        self, survey_id: int, user: User
-    ) -> Survey:
-        """
-        Получает обследование по ID, проверяет его существование
-        и права доступа пользователя.
-        """
-        survey_db = await self.repo.get(id=survey_id)
-        if not survey_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(), id=survey_id
-                )
-            )
-        permission = await IsSurveyOwnerOrCurator().has_obj_permission(
-            user=user, obj=survey_db
-        )
-        if not permission:
-            raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
-        return survey_db
 
     async def _update_tree_condition_on_approval(
         self, survey_db: Survey
@@ -180,21 +126,16 @@ class SurveyService:
 
     async def update_survey_with_photos(
         self,
-        obj_id: int,
+        survey_db: Survey,
         obj_in: SurveyUpdate,
-        user: User,
         files: list[UploadFile] | None,
     ) -> Survey:
         """
-        Обновляет данные существующего обследования с проверкой прав доступа.
+        Обновляет данные существующего обследования.
         """
         saved_file_paths = []
         photos_data = []
-        tree_db = None
         try:
-            survey_db = await self._get_survey_and_check_permissions(
-                survey_id=obj_id, user=user
-            )
             if files:
                 photos_data, saved_file_paths = await save_uploaded_images(
                     files=files
@@ -212,7 +153,7 @@ class SurveyService:
                     )
 
                 await self.repo.session.flush()
-                self._create_photos_in_session(
+                await self.photo_service.create_photo_batch(
                     photos_data=photos_data, survey_id=survey_db.id
                 )
                 await self.repo.session.refresh(
@@ -257,14 +198,11 @@ class SurveyService:
         await self.repo.remove(id=survey_db.id)
         return paths_photo_to_delete
 
-    async def delete_with_photos(self, survey_id: int, user: User) -> None:
+    async def delete_with_photos(self, survey_db: Survey) -> None:
         """
-        Удаляет обследование и все связанные с ним данные с проверкой прав.
+        Удаляет обследование и все связанные с ним данные.
         """
         try:
-            survey_db = await self._get_survey_and_check_permissions(
-                survey_id=survey_id, user=user
-            )
             async with atomic_transaction(session=self.repo.session):
                 paths_photo_to_delete = await self._stage_deletion(
                     survey_db=survey_db
