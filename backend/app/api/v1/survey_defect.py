@@ -8,6 +8,7 @@ from fastapi import (
     status,
 )
 
+from app.api.v1.survey import get_survey_and_check_permissions
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
@@ -17,9 +18,16 @@ from app.core.exceptions import (
     SurveyDefectRemovingError,
     SurveyDefectUpdatingError,
 )
-from app.core.permissions import IsCurator, IsVolunteer, permission_dependency
+from app.core.permissions import (
+    IsCurator,
+    IsSurveyDefectOwnerOrCurator,
+    IsVolunteer,
+    permission_dependency,
+)
 from app.core.user import current_user
-from app.models import User
+from app.models import Survey, User
+from app.models.survey_defect import SurveyDefect
+from app.repositories import SurveyDefectRepository
 from app.schemas import (
     DefectStatusEnum,
     PhotoRead,
@@ -30,6 +38,33 @@ from app.schemas import (
 from app.schemas.defaults import SurveyDefectDefaults
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
+
+
+async def get_survey_defect_and_check_permissions(
+    defect_id: int,
+    user: User = Depends(current_user),
+    defect_repo: SurveyDefectRepository = Depends(),
+) -> SurveyDefect:
+    """
+    Получает дефект по ID, проверяет его существование
+    и права доступа пользователя.
+    """
+    defect_db = await defect_repo.get(id=defect_id)
+    if not defect_db:
+        raise NotFoundError(
+            ExceptionDetails.get_not_found_detail(
+                model_name=defect_repo.model.verbose_name(),
+                id=defect_id,
+            )
+        )
+    permission = await IsSurveyDefectOwnerOrCurator().has_obj_permission(
+        user=user, obj=defect_db
+    )
+    if not permission:
+        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
+
+    return defect_db
+
 
 router = APIRouter()
 
@@ -99,34 +134,24 @@ async def get_survey_defects_by_survey_id(
 )
 async def create_defect(
     survey_id: int,
+    survey_db: Survey = Depends(get_survey_and_check_permissions),
     defect_type_id: int = Form(default=...),
     description: str | None = Form(default=None),
     defect_status: DefectStatusEnum = SurveyDefectDefaults.DEFECT_STATUS,
     files: list[UploadFile] = File(default=...),
     service: SurveyDefectService = Depends(),
-    current_user: User = Depends(current_user),
 ) -> SurveyDefectRead:
     survey_defect_in = SurveyDefectCreate(
-        survey_id=survey_id,
+        survey_id=survey_db.id,
         defect_type_id=defect_type_id,
         description=description,
         defect_status=defect_status,
     )
     try:
         survey_defect_db = await service.create_with_photos(
-            survey_defect_in=survey_defect_in,
-            files=files,
-            user=current_user,
+            survey_defect_in=survey_defect_in, files=files
         )
         return SurveyDefectRead.model_validate(obj=survey_defect_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
     except SurveyDefectCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -148,23 +173,13 @@ async def add_photos_to_defect(
     defect_id: int,
     files: list[UploadFile],
     service: PhotoService = Depends(),
-    current_user: User = Depends(current_user),
 ) -> list[PhotoRead]:
     try:
         photos = await service.upload_and_link_photos(
             files=files,
             survey_defect_id=defect_id,
-            user=current_user,
         )
         return [PhotoRead.model_validate(photo) for photo in photos]
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
     except PhotoCreationError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -182,24 +197,16 @@ async def add_photos_to_defect(
     ],
 )
 async def update_defect(
-    defect_id: int,
     defect_in: SurveyDefectUpdate,
+    defect_db: SurveyDefect = Depends(get_survey_defect_and_check_permissions),
     service: SurveyDefectService = Depends(),
-    user: User = Depends(current_user),
 ) -> SurveyDefectRead:
     try:
         defect_update_db = await service.update_defect(
-            obj_id=defect_id, obj_in=defect_in, user=user
+            obj_in=defect_in,
+            defect_db=defect_db,
         )
         return SurveyDefectRead.model_validate(obj=defect_update_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
     except SurveyDefectUpdatingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -216,21 +223,11 @@ async def update_defect(
     ],
 )
 async def delete_defect(
-    defect_id: int,
+    defect_db: SurveyDefect = Depends(get_survey_defect_and_check_permissions),
     service: SurveyDefectService = Depends(),
-    user: User = Depends(current_user),
 ) -> None:
     try:
-        await service.delete_with_photos(defect_id=defect_id, user=user)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(e)
-        ) from e
+        await service.delete_with_photos(defect_db=defect_db)
     except SurveyDefectRemovingError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
