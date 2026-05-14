@@ -1,70 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.v1.dependencies import (
+    check_tree_creation_access,
+    check_tree_modification_access,
+    get_sector_from_body,
+    get_tree_db,
+)
 from app.core.exceptions import (
-    ExceptionDetails,
     NotAllowedError,
-    NotFoundError,
-    PermissionDenniedError,
     TreeCreationError,
     TreeUpdatingError,
 )
 from app.core.permissions import (
     IsCurator,
-    IsSectorCuratorOrCorrectTeam,
-    IsTreeCuratorOrCorrectTeam,
     IsVolunteer,
     permission_dependency,
 )
 from app.core.user import current_user
 from app.models import Sector, Tree, User
-from app.repositories import SectorRepository, TreeRepository
 from app.schemas import TreeCreate, TreeCreateWithAuthor, TreeRead, TreeUpdate
 from app.services.tree_service import TreeService
-
-
-async def get_sector_with_permissions(
-    tree_in: TreeCreate,
-    user: User = Depends(current_user),
-    sector_repo: SectorRepository = Depends(),
-) -> Sector:
-
-    sector = await sector_repo.get(id=tree_in.sector_id)
-    if not sector:
-        raise NotFoundError(
-            ExceptionDetails.get_not_found_detail(
-                model_name=SectorRepository.model.verbose_name(),
-                id=tree_in.sector_id,
-            )
-        )
-    permission = await IsSectorCuratorOrCorrectTeam().has_obj_permission(
-        user=user, obj=sector
-    )
-    if not permission:
-        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
-    return sector
-
-
-async def get_tree_with_permissions(
-    tree_id: int,
-    user: User = Depends(current_user),
-    tree_repo: TreeRepository = Depends(),
-) -> Tree:
-
-    tree = await tree_repo.get(id=tree_id)
-    if not tree:
-        raise NotFoundError(
-            ExceptionDetails.get_not_found_detail(
-                model_name=TreeRepository.model.verbose_name(),
-                id=tree_id,
-            )
-        )
-    permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
-        user=user, obj=tree
-    )
-    if not permission:
-        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
-    return tree
-
 
 router = APIRouter()
 
@@ -90,14 +45,10 @@ async def get_all_trees(
     summary="Получение растения",
     description="Показывает растение (дерево) по идентификатору (id).",
 )
-async def get_tree(tree_id: int, service: TreeService = Depends()) -> TreeRead:
-    try:
-        tree_db = await service.get_tree(obj_id=tree_id)
-        return TreeRead.model_validate(obj=tree_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+async def get_tree(
+    tree_db: Tree = Depends(dependency=get_tree_db),
+) -> TreeRead:
+    return TreeRead.model_validate(obj=tree_db)
 
 
 @router.get(
@@ -122,13 +73,14 @@ async def get_trees_by_sector_id(
     summary="Создание нового растения",
     description="Создает новое растение (дерево).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
+        Depends(dependency=permission_dependency(permission=IsVolunteer)),
+        Depends(dependency=check_tree_creation_access),
     ],
 )
 async def create_tree(
     tree_in: TreeCreate,
     current_user: User = Depends(dependency=current_user),
-    sector: Sector = Depends(get_sector_with_permissions),
+    sector: Sector = Depends(dependency=get_sector_from_body),
     service: TreeService = Depends(),
 ) -> TreeRead:
     try:
@@ -156,13 +108,14 @@ async def create_tree(
     summary="Изменение растения",
     description="Изменяет поля записи растения по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsCurator)),
+        Depends(dependency=check_tree_modification_access),
     ],
 )
 async def update_tree(
     tree_id: int,
     tree_in: TreeUpdate,
-    tree_db: Tree = Depends(get_tree_with_permissions),
+    tree_db: Tree = Depends(dependency=get_tree_db),
     service: TreeService = Depends(),
 ) -> TreeRead:
     try:
@@ -182,7 +135,8 @@ async def update_tree(
         растения на `Растение удалено`",
     deprecated=True,
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsCurator)),
+        Depends(dependency=check_tree_modification_access),
     ],
 )
 async def delete_tree(tree_id: int, service: TreeService = Depends()) -> None:
