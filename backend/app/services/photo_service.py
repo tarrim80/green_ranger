@@ -73,36 +73,25 @@ class PhotoService(UpdateObjMixin):
                 f"{ExceptionDetails.FAILED_CREATE_PHOTO}: {e}"
             )
 
-    async def _stage_deletion(self, photo_id: int) -> list[Path]:
+    async def _stage_deletion(self, photo: Photo) -> list[Path]:
         """Подготавливает файл фотографии к физическому удалению с диска."""
-        photo_db: Photo = await self.repo.get(id=photo_id)
-        if not photo_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(), id=photo_id
-                )
-            )
 
         paths_photo_to_delete = [
-            settings.media_root / photo_db.file_path,
-            settings.media_root / photo_db.thumbnail_path,
+            settings.media_root / photo.file_path,
+            settings.media_root / photo.thumbnail_path,
         ]
 
-        await self.repo.remove(id=photo_id)
+        await self.repo.remove(id=photo.id)
         return paths_photo_to_delete
 
-    async def delete_photo(self, photo_id: int) -> None:
+    async def delete_photo(self, photo: Photo) -> None:
         """Удаляет фотографию из базы данных и с диска."""
         try:
             async with atomic_transaction(session=self.repo.session):
-                paths_photo_to_delete = await self._stage_deletion(
-                    photo_id=photo_id
-                )
+                paths_photo_to_delete = await self._stage_deletion(photo=photo)
             for path in paths_photo_to_delete:
                 if os.path.exists(path=path):
                     os.remove(path=path)
-        except (NotFoundError, PermissionDenniedError):
-            raise
         except Exception as e:
             raise PhotoRemovingError(
                 f"{ExceptionDetails.FAILED_REMOVE_PHOTO}: {e}"
