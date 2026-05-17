@@ -6,10 +6,8 @@ from fastapi import Depends, UploadFile
 from app.core.config import settings
 from app.core.exceptions import (
     ExceptionDetails,
-    NotFoundError,
-    PermissionDenniedError,
-    PhotoCreationError,
     PhotoRemovingError,
+    PhotoUploadingError,
 )
 from app.core.transaction_manager import atomic_transaction
 from app.models import Photo
@@ -69,8 +67,8 @@ class PhotoService(UpdateObjMixin):
             for path in saved_file_paths:
                 if os.path.exists(path):
                     os.remove(path)
-            raise PhotoCreationError(
-                f"{ExceptionDetails.FAILED_CREATE_PHOTO}: {e}"
+            raise PhotoUploadingError(
+                f"{ExceptionDetails.FAILED_UPLOAD_PHOTO}: {e}"
             )
 
     async def _stage_deletion(self, photo: Photo) -> list[Path]:
