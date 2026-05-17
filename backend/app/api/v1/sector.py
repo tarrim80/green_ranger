@@ -1,22 +1,20 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
+from app.api.v1.dependencies import (
+    check_sector_modification_access,
+    get_sector_db,
+)
 from app.core.exceptions import (
-    NotAllowedError,
-    NotFoundError,
-    PermissionDenniedError,
     SectorCreationError,
-    SectorRemovingError,
-    SectorUpdatingError,
 )
 from app.core.permissions import (
     IsAdmin,
     IsCurator,
-    IsSectorCurator,
     permission_dependency,
 )
 from app.core.user import current_user
-from app.models import User
+from app.models import Sector, User
 from app.schemas import RoleEnum, SectorCreate, SectorRead, SectorUpdate
 from app.services.sector_service import SectorService
 
@@ -45,15 +43,9 @@ async def get_all_sectors(
     description="Показывает участок по его идентификатору (id).",
 )
 async def get_sector(
-    sector_id: int, service: SectorService = Depends()
+    sector_db: Sector = Depends(dependency=get_sector_db),
 ) -> SectorRead:
-    try:
-        sector_db = await service.get_sector(obj_id=sector_id)
-        return SectorRead.model_validate(obj=sector_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+    return SectorRead.model_validate(obj=sector_db)
 
 
 @router.post(
@@ -94,44 +86,19 @@ async def create_sector(
     description="Изменяет поля записи в конкретном участке \
         по его идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsCurator)),
+        Depends(dependency=check_sector_modification_access),
     ],
 )
 async def update_sector(
-    sector_id: int,
     sector_in: SectorUpdate,
     service: SectorService = Depends(),
-    current_user: User = Depends(current_user),
+    sector_db: Sector = Depends(dependency=get_sector_db),
 ) -> SectorRead:
-    try:
-        sector_db = await service.get_sector(obj_id=sector_id)
-        permission = await IsSectorCurator().has_obj_permission(
-            user=current_user, obj=sector_db
-        )
-        if not permission:
-            raise PermissionDenniedError
-        sector_update_db = await service.update_sector(
-            sector_db=sector_db, obj_in=sector_in
-        )
-        return SectorRead.model_validate(obj=sector_update_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail=str(e),
-        ) from e
-    except PermissionDenniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e),
-        ) from e
-    except SectorUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    sector_update_db = await service.update_sector(
+        sector_db=sector_db, obj_in=sector_in
+    )
+    return SectorRead.model_validate(obj=sector_update_db)
 
 
 @router.delete(
@@ -143,26 +110,12 @@ async def update_sector(
             растения./nНевозможно удалить участок, к которому прикреплена \
                 команда волонтеров",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsAdmin))
+        Depends(dependency=permission_dependency(permission=IsAdmin)),
+        Depends(dependency=check_sector_modification_access),
     ],
 )
 async def delete_sector(
-    sector_id: int, service: SectorService = Depends()
+    sector_db: Sector = Depends(dependency=get_sector_db),
+    service: SectorService = Depends(),
 ) -> None:
-    try:
-        await service.delete_sector(sector_id=sector_id)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail=str(e),
-        ) from e
-    except SectorRemovingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
+    await service.delete_sector(sector=sector_db)

@@ -7,7 +7,6 @@ from app.core.constants import SRID_MERCATOR_WGS84
 from app.core.exceptions import (
     ExceptionDetails,
     NotAllowedError,
-    NotFoundError,
     SectorCreationError,
     SectorRemovingError,
     SectorUpdatingError,
@@ -16,10 +15,9 @@ from app.core.transaction_manager import atomic_transaction
 from app.models import Sector
 from app.repositories.sector import SectorRepository
 from app.schemas import SectorCreate, SectorUpdate
-from app.services.mixins import DeleteObjMixin
 
 
-class SectorService(DeleteObjMixin):
+class SectorService:
     """Сервисный слой для управления учетными участками."""
 
     def __init__(
@@ -34,18 +32,6 @@ class SectorService(DeleteObjMixin):
         """Получает список всех учетных участков."""
         sectors_db = await self.repo.get_multi()
         return list(sectors_db)
-
-    async def get_sector(self, obj_id: int) -> Sector:
-        """Получает учетный участок по его идентификатору."""
-        sector_db = await self.repo.get(id=obj_id)
-        if not sector_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(),
-                    id=obj_id,
-                )
-            )
-        return sector_db
 
     async def create_sector(
         self, sector_in: SectorCreate, curator_id: int | None = None
@@ -67,11 +53,8 @@ class SectorService(DeleteObjMixin):
             new_sector_id = new_sector.id
             fully_loaded_sector = await self.repo.get(id=new_sector_id)
             if not fully_loaded_sector:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name,
-                        id=new_sector_id,
-                    )
+                raise SectorCreationError(
+                    ExceptionDetails.FAILED_CREATE_RECORD
                 )
             return fully_loaded_sector
         except IntegrityError as e:
@@ -104,37 +87,24 @@ class SectorService(DeleteObjMixin):
                 await self.repo.session.flush()
                 await self.repo.session.refresh(instance=sector_db)
             return sector_db
-        except NotFoundError:
-            raise
         except Exception as e:
             raise SectorUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
 
-    async def delete_sector(self, sector_id: int) -> None:
+    async def delete_sector(self, sector: Sector) -> None:
         """Удаляет учетный участок с проверкой связанных сущностей."""
+        if sector.team_id:
+            raise NotAllowedError(
+                ExceptionDetails.NOT_ALLOWED_REMOVE_SECTOR_WITH_TEAM
+            )
+        if sector.trees:
+            raise NotAllowedError(
+                ExceptionDetails.NOT_ALLOWED_REMOVE_SECTOR_WITH_TREES
+            )
         try:
-            sector = await self.repo.get(id=sector_id)
-            if not sector:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=sector_id,
-                    )
-                )
-            if sector.team_id:
-                raise NotAllowedError(
-                    ExceptionDetails.NOT_ALLOWED_REMOVE_SECTOR_WITH_TEAM
-                )
-            if sector.trees:
-                raise NotAllowedError(
-                    ExceptionDetails.NOT_ALLOWED_REMOVE_SECTOR_WITH_TREES
-                )
-            await self.delete_obj(obj_id=sector_id)
-        except NotFoundError as e:
-            raise
-        except NotAllowedError as e:
-            raise
+            async with atomic_transaction(session=self.repo.session):
+                await self.repo.remove(id=sector.id)
         except Exception as e:
             raise SectorRemovingError(
                 f"{ExceptionDetails.FAILED_REMOVE_RECORD}: {e}"
