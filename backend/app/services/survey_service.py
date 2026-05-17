@@ -6,8 +6,7 @@ from fastapi import Depends, UploadFile
 
 from app.core.exceptions import (
     ExceptionDetails,
-    NotFoundError,
-    PermissionDenniedError,
+    NotAllowedError,
     SurveyCreationError,
     SurveyRemovingError,
     SurveyUpdatingError,
@@ -15,11 +14,16 @@ from app.core.exceptions import (
 from app.core.transaction_manager import atomic_transaction
 from app.models import Survey
 from app.repositories.survey import SurveyRepository
-from app.repositories.tree import TreeRepository
 from app.schemas import SurveyCreate, SurveyStatusEnum, SurveyUpdate
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
+from app.services.tree_service import TreeService
 from app.utils.photo_uploader import save_uploaded_images
+
+TRANSIENT_STATUSES = (
+    SurveyStatusEnum.ON_REVIEW,
+    SurveyStatusEnum.NEEDS_CORRECTION,
+)
 
 
 class SurveyService:
@@ -28,12 +32,12 @@ class SurveyService:
     def __init__(
         self,
         repo: SurveyRepository = Depends(),
-        tree_repo: TreeRepository = Depends(),
+        tree_service: TreeService = Depends(),
         defect_service: SurveyDefectService = Depends(),
         photo_service: PhotoService = Depends(),
     ) -> None:
         self.repo = repo
-        self.tree_repo = tree_repo
+        self.tree_service = tree_service
         self.defect_service = defect_service
         self.photo_service = photo_service
 
@@ -43,18 +47,6 @@ class SurveyService:
         """Получает список всех обследований."""
         surveys_db = await self.repo.get_multi()
         return list(surveys_db)
-
-    async def get_survey(self, obj_id: int) -> Survey:
-        """Получает обследование по его идентификатору."""
-        survey_db = await self.repo.get(id=obj_id)
-        if not survey_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(),
-                    id=obj_id,
-                )
-            )
-        return survey_db
 
     async def get_surveys_by_tree_id(self, tree_id: int) -> list[Survey]:
         """Получает все обследования для конкретного растения."""
@@ -89,39 +81,11 @@ class SurveyService:
                     ],
                 )
             return new_survey
-        except (NotFoundError, PermissionDenniedError):
-            raise
         except Exception as e:
             for filename in saved_file_paths:
                 os.remove(filename)
             raise SurveyCreationError(
                 f"{ExceptionDetails.FAILED_CREATE_SURVEY}: {e}"
-            )
-
-    async def _update_tree_condition_on_approval(
-        self, survey_db: Survey
-    ) -> None:
-        """
-        Обновляет состояние дерева, если одобрено последнее обследование.
-        """
-        tree_db = await self.tree_repo.get(survey_db.tree_id)
-        if not tree_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.tree_repo.model.verbose_name(),
-                    id=survey_db.tree_id,
-                )
-            )
-
-        actual_survey = max(tree_db.surveys, key=attrgetter("created_at"))
-        if actual_survey.id == survey_db.id:
-            tree_db.condition = survey_db.condition
-            tree_db.is_emergency = survey_db.is_emergency_report
-            self.repo.session.add(instance=tree_db)
-            await self.repo.session.flush()
-            await self.repo.session.refresh(
-                instance=tree_db,
-                attribute_names=["sector", "surveys", "author", "updated_at"],
             )
 
     async def update_survey_with_photos(
@@ -136,21 +100,25 @@ class SurveyService:
         saved_file_paths = []
         photos_data = []
         try:
+            await self._validate_survey_not_completed(survey_db=survey_db)
             if files:
                 photos_data, saved_file_paths = await save_uploaded_images(
                     files=files
                 )
             update_data = obj_in.model_dump(exclude_unset=True)
+            new_status = obj_in.survey_status
+            await self._validate_status_transition(
+                survey_db=survey_db, new_status=new_status
+            )
 
             async with atomic_transaction(session=self.repo.session):
                 for field, value in update_data.items():
                     setattr(survey_db, field, value)
                 self.repo.session.add(instance=survey_db)
 
-                if survey_db.survey_status == SurveyStatusEnum.APPROVED:
-                    await self._update_tree_condition_on_approval(
-                        survey_db=survey_db
-                    )
+                await self.tree_service.sync_state_tree_with_last_survey(
+                    tree=survey_db.tree, survey=survey_db
+                )
 
                 await self.repo.session.flush()
                 await self.photo_service.create_photo_batch(
@@ -166,14 +134,44 @@ class SurveyService:
                     ],
                 )
             return survey_db
-        except (NotFoundError, PermissionDenniedError):
-            raise
         except Exception as e:
             for filename in saved_file_paths:
                 os.remove(filename)
             raise SurveyUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             ) from e
+
+    async def _validate_survey_not_completed(self, survey_db) -> None:
+        """Проверяет обследование на завершённость."""
+        if survey_db.survey_status not in TRANSIENT_STATUSES:
+            raise NotAllowedError(
+                ExceptionDetails.CANNOT_UPDATE_COMPLETED_SURVEYS
+            )
+
+    async def _validate_status_transition(
+        self, survey_db: Survey, new_status: SurveyStatusEnum | None
+    ) -> None:
+        """Проверяет возможность изменения статуса обследования."""
+        if not new_status:
+            return
+        all_surveys = sorted(
+            survey_db.tree.surveys, key=attrgetter("created_at")
+        )
+        current_index = all_surveys.index(survey_db)
+        if new_status == SurveyStatusEnum.APPROVED:
+            previous_surveys = all_surveys[:current_index]
+            if any(
+                s.survey_status in TRANSIENT_STATUSES for s in previous_surveys
+            ):
+                raise NotAllowedError(
+                    ExceptionDetails.PREVIOUS_SURVEYS_NOT_COMPLETED
+                )
+        if new_status in TRANSIENT_STATUSES:
+            is_last = current_index == len(all_surveys) - 1
+            if not is_last:
+                raise NotAllowedError(
+                    ExceptionDetails.CANNOT_RESET_STATUS_FOR_OLD_SURVEY
+                )
 
     async def _stage_deletion(self, survey_db: Survey) -> list[Path]:
         """
@@ -190,9 +188,7 @@ class SurveyService:
                 paths_photo_to_delete.extend(path_defect_photo_to_delete)
         for tree_photo in survey_db.tree_photos:
             paths_tree_photo_to_delete = (
-                await self.photo_service._stage_deletion(
-                    photo_id=tree_photo.id
-                )
+                await self.photo_service._stage_deletion(photo=tree_photo)
             )
             paths_photo_to_delete.extend(paths_tree_photo_to_delete)
         await self.repo.remove(id=survey_db.id)
@@ -211,8 +207,6 @@ class SurveyService:
                 for path in paths_photo_to_delete:
                     if os.path.exists(path=path):
                         os.remove(path=path)
-        except (NotFoundError, PermissionDenniedError):
-            raise
         except Exception as e:
             raise SurveyRemovingError(
                 f"{ExceptionDetails.FAILED_REMOVE_SURVEY}: {e}"

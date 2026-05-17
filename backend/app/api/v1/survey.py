@@ -8,25 +8,26 @@ from fastapi import (
     status,
 )
 
+from app.api.v1.dependencies import (
+    check_survey_creation_access,
+    check_survey_modification_access,
+    get_survey_db,
+    get_tree_from_form,
+    resolve_survey_status,
+)
 from app.core.exceptions import (
-    ExceptionDetails,
-    NotFoundError,
-    PermissionDenniedError,
     SurveyCreationError,
     SurveyRemovingError,
     SurveyUpdatingError,
 )
 from app.core.permissions import (
     IsCurator,
-    IsSurveyOwnerOrCurator,
-    IsTreeCuratorOrCorrectTeam,
     IsVolunteer,
     permission_dependency,
 )
 from app.core.user import current_user
 from app.models import Survey, User
 from app.models.tree import Tree
-from app.repositories import SurveyRepository, TreeRepository
 from app.schemas import (
     SurveyCreate,
     SurveyRead,
@@ -36,56 +37,6 @@ from app.schemas import (
 )
 from app.schemas.defaults import SurveyDefaults
 from app.services.survey_service import SurveyService
-
-
-async def get_survey_and_check_permissions(
-    survey_id: int,
-    survey_repo: SurveyRepository = Depends(),
-    user: User = Depends(current_user),
-) -> Survey:
-    """
-    Получает обследование по ID, проверяет его существование
-    и права доступа пользователя.
-    """
-    survey_db = await survey_repo.get(id=survey_id)
-    if not survey_db:
-        raise NotFoundError(
-            ExceptionDetails.get_not_found_detail(
-                model_name=survey_repo.model.verbose_name(), id=survey_id
-            )
-        )
-    permission = await IsSurveyOwnerOrCurator().has_obj_permission(
-        user=user, obj=survey_db
-    )
-    if not permission:
-        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
-    return survey_db
-
-
-async def get_tree_and_check_permissions(
-    tree_id: int = Form(default=...),
-    tree_repo: TreeRepository = Depends(),
-    user: User = Depends(current_user),
-) -> Tree:
-    """
-    Получает растение по ID, проверяет его существование
-    и права доступа пользователя.
-    """
-    tree_db = await tree_repo.get(tree_id)
-    if not tree_db:
-        raise NotFoundError(
-            ExceptionDetails.get_not_found_detail(
-                model_name=tree_repo.model.verbose_name(),
-                id=tree_id,
-            )
-        )
-    permission = await IsTreeCuratorOrCorrectTeam().has_obj_permission(
-        user=user, obj=tree_db
-    )
-    if not permission:
-        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
-    return tree_db
-
 
 router = APIRouter()
 
@@ -114,15 +65,9 @@ async def get_all_surveys(
     description="Показывает обследование по идентификатору (id).",
 )
 async def get_survey(
-    survey_id: int, service: SurveyService = Depends()
+    survey_db: Survey = Depends(dependency=get_survey_db),
 ) -> SurveyRead:
-    try:
-        survey_db = await service.get_survey(obj_id=survey_id)
-        return SurveyRead.model_validate(obj=survey_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+    return SurveyRead.model_validate(obj=survey_db)
 
 
 @router.get(
@@ -149,11 +94,12 @@ async def get_surveys_by_tree_id(
     summary="Создание нового обследования",
     description="Создает новое обследование растения.",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
+        Depends(dependency=permission_dependency(permission=IsVolunteer)),
+        Depends(dependency=check_survey_creation_access),
     ],
 )
 async def create_survey(
-    tree_db: Tree = Depends(get_tree_and_check_permissions),
+    tree_db: Tree = Depends(dependency=get_tree_from_form),
     age: int | None = Form(default=None),
     height: float | None = Form(default=None),
     diameter: float | None = Form(default=None),
@@ -196,12 +142,12 @@ async def create_survey(
     summary="Изменение обследования",
     description="Изменяет поля записи обследования по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
+        Depends(dependency=permission_dependency(permission=IsVolunteer)),
+        Depends(dependency=check_survey_modification_access),
     ],
 )
 async def update_survey(
-    survey_id: int,
-    survey_db: Survey = Depends(get_survey_and_check_permissions),
+    survey_db: Survey = Depends(dependency=get_survey_db),
     age: int | None = Form(default=None),
     height: float | None = Form(default=None),
     diameter: float | None = Form(default=None),
@@ -210,7 +156,9 @@ async def update_survey(
     is_emergency_report: bool | None = Form(default=None),
     note: str | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
-    survey_status: SurveyStatusEnum | None = Form(default=None),
+    survey_status: SurveyStatusEnum = Depends(
+        dependency=resolve_survey_status
+    ),
     service: SurveyService = Depends(),
 ) -> SurveyRead:
     try:
@@ -242,11 +190,13 @@ async def update_survey(
     summary="Удаление конкретного обследования",
     description="Удаляет обследование по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsCurator)),
+        Depends(dependency=check_survey_modification_access),
     ],
 )
+# TODO Запретить удалять обследования. Можно Только архивировать!
 async def delete_survey(
-    survey_db: Survey = Depends(get_survey_and_check_permissions),
+    survey_db: Survey = Depends(dependency=get_survey_db),
     service: SurveyService = Depends(),
 ) -> None:
     try:

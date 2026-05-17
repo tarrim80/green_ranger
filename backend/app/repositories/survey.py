@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
-from app.models import Survey, Tree
+from app.models import Survey, SurveyDefect, Tree
 from app.repositories.base import BaseRepository
 from app.schemas import SurveyCreate, SurveyUpdate
 
@@ -30,9 +30,20 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
         statement = (
             select(self.model)
             .options(selectinload(self.model.tree).selectinload(Tree.sector))
+            .options(selectinload(self.model.tree).selectinload(Tree.surveys))
             .options(selectinload(self.model.tree_photos))
-            .options(selectinload(self.model.survey_defects))
             .options(selectinload(self.model.author))
+            .options(selectinload(self.model.survey_defects))
+            .options(
+                selectinload(self.model.survey_defects).selectinload(
+                    SurveyDefect.photos
+                )
+            )
+            .options(
+                selectinload(self.model.survey_defects).selectinload(
+                    SurveyDefect.defect_type
+                )
+            )
             .where(self.model.id == id)
         )
         result = await self.session.execute(statement=statement)
@@ -45,9 +56,20 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
         statement = (
             select(self.model)
             .options(selectinload(self.model.tree).selectinload(Tree.sector))
+            .options(selectinload(self.model.tree).selectinload(Tree.surveys))
             .options(selectinload(self.model.tree_photos))
-            .options(selectinload(self.model.survey_defects))
             .options(selectinload(self.model.author))
+            .options(selectinload(self.model.survey_defects))
+            .options(
+                selectinload(self.model.survey_defects).selectinload(
+                    SurveyDefect.photos
+                )
+            )
+            .options(
+                selectinload(self.model.survey_defects).selectinload(
+                    SurveyDefect.defect_type
+                )
+            )
             .offset(offset=skip)
             .limit(limit=limit)
         )
@@ -59,9 +81,20 @@ class SurveyRepository(BaseRepository[Survey, SurveyCreate, SurveyUpdate]):
         statement = (
             select(self.model)
             .options(selectinload(self.model.tree).selectinload(Tree.sector))
+            .options(selectinload(self.model.tree).selectinload(Tree.surveys))
             .options(selectinload(self.model.tree_photos))
-            .options(selectinload(self.model.survey_defects))
             .options(selectinload(self.model.author))
+            .options(selectinload(self.model.survey_defects))
+            .options(
+                selectinload(self.model.survey_defects).selectinload(
+                    SurveyDefect.photos
+                )
+            )
+            .options(
+                selectinload(self.model.survey_defects).selectinload(
+                    SurveyDefect.defect_type
+                )
+            )
             .where(self.model.tree_id == tree_id)
         )
         surveys_db = await self.session.execute(statement=statement)
