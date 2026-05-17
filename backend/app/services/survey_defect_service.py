@@ -5,8 +5,6 @@ from fastapi import Depends, UploadFile
 
 from app.core.exceptions import (
     ExceptionDetails,
-    NotFoundError,
-    PermissionDenniedError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,
     SurveyDefectUpdatingError,
@@ -28,31 +26,15 @@ class SurveyDefectService(UpdateObjMixin):
     def __init__(
         self,
         repo: SurveyDefectRepository = Depends(),
-        survey_repo: SurveyRepository = Depends(),
-        tree_repo: TreeRepository = Depends(),
         photo_service: PhotoService = Depends(),
     ) -> None:
         self.repo = repo
-        self.survey_repo = survey_repo
-        self.tree_repo = tree_repo
         self.photo_service = photo_service
 
     async def get_all_defects(self) -> list[SurveyDefect]:
         """Получает список всех дефектов."""
         defects_db = await self.repo.get_multi()
         return list(defects_db)
-
-    async def get_defect(self, obj_id: int) -> SurveyDefect:
-        """Получает дефект по его идентификатору."""
-        defect_db = await self.repo.get(id=obj_id)
-        if not defect_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(),
-                    id=obj_id,
-                )
-            )
-        return defect_db
 
     async def get_defects_by_survey_id(
         self, survey_id: int
@@ -101,8 +83,6 @@ class SurveyDefectService(UpdateObjMixin):
         try:
             defect = await self.update_obj(db_obj=defect_db, obj_in=obj_in)
             return defect
-        except (NotFoundError, PermissionDenniedError):
-            raise
         except Exception as e:
             raise SurveyDefectUpdatingError(
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"

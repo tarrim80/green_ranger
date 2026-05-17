@@ -8,11 +8,15 @@ from fastapi import (
     status,
 )
 
-from app.api.v1.survey import get_survey_and_check_permissions
+from app.api.v1.dependencies import (
+    check_survey_defect_modification_access,
+    check_survey_modification_access,
+    get_survey_db,
+    get_survey_defect_db,
+)
 from app.core.exceptions import (
     ExceptionDetails,
     NotFoundError,
-    PermissionDenniedError,
     PhotoCreationError,
     SurveyDefectCreationError,
     SurveyDefectRemovingError,
@@ -20,14 +24,11 @@ from app.core.exceptions import (
 )
 from app.core.permissions import (
     IsCurator,
-    IsSurveyDefectOwnerOrCurator,
     IsVolunteer,
     permission_dependency,
 )
-from app.core.user import current_user
-from app.models import Survey, User
+from app.models import Survey
 from app.models.survey_defect import SurveyDefect
-from app.repositories import SurveyDefectRepository
 from app.schemas import (
     DefectStatusEnum,
     PhotoRead,
@@ -38,33 +39,6 @@ from app.schemas import (
 from app.schemas.defaults import SurveyDefectDefaults
 from app.services.photo_service import PhotoService
 from app.services.survey_defect_service import SurveyDefectService
-
-
-async def get_survey_defect_and_check_permissions(
-    defect_id: int,
-    user: User = Depends(current_user),
-    defect_repo: SurveyDefectRepository = Depends(),
-) -> SurveyDefect:
-    """
-    Получает дефект по ID, проверяет его существование
-    и права доступа пользователя.
-    """
-    defect_db = await defect_repo.get(id=defect_id)
-    if not defect_db:
-        raise NotFoundError(
-            ExceptionDetails.get_not_found_detail(
-                model_name=defect_repo.model.verbose_name(),
-                id=defect_id,
-            )
-        )
-    permission = await IsSurveyDefectOwnerOrCurator().has_obj_permission(
-        user=user, obj=defect_db
-    )
-    if not permission:
-        raise PermissionDenniedError(ExceptionDetails.NO_RIGHT_FOR_ACTION)
-
-    return defect_db
-
 
 router = APIRouter()
 
@@ -93,15 +67,9 @@ async def get_all_survey_defects(
     description="Показывает конкретный дефект по идентификатору (id).",
 )
 async def get_survey_defect(
-    defect_id: int, service: SurveyDefectService = Depends()
+    defect: SurveyDefect = Depends(dependency=get_survey_defect_db),
 ) -> SurveyDefectRead:
-    try:
-        defect_db = await service.get_defect(obj_id=defect_id)
-        return SurveyDefectRead.model_validate(obj=defect_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+    return SurveyDefectRead.model_validate(obj=defect)
 
 
 @router.get(
@@ -129,12 +97,12 @@ async def get_survey_defects_by_survey_id(
     summary="Создание нового обнаруженного дефекта",
     description="Создает новый обнаруженный дефект.",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
+        Depends(dependency=permission_dependency(permission=IsVolunteer)),
+        Depends(dependency=check_survey_modification_access),
     ],
 )
 async def create_defect(
-    survey_id: int,
-    survey_db: Survey = Depends(get_survey_and_check_permissions),
+    survey_db: Survey = Depends(dependency=get_survey_db),
     defect_type_id: int = Form(default=...),
     description: str | None = Form(default=None),
     defect_status: DefectStatusEnum = SurveyDefectDefaults.DEFECT_STATUS,
@@ -166,18 +134,19 @@ async def create_defect(
     description="Загружает одну или несколько фотографий \
         и привязывает их к существующему дефекту.",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
+        Depends(dependency=permission_dependency(permission=IsVolunteer)),
+        Depends(dependency=check_survey_defect_modification_access),
     ],
 )
 async def add_photos_to_defect(
-    defect_id: int,
     files: list[UploadFile],
+    defect: SurveyDefect = Depends(dependency=get_survey_defect_db),
     service: PhotoService = Depends(),
 ) -> list[PhotoRead]:
     try:
         photos = await service.upload_and_link_photos(
             files=files,
-            survey_defect_id=defect_id,
+            survey_defect_id=defect.id,
         )
         return [PhotoRead.model_validate(photo) for photo in photos]
     except PhotoCreationError as e:
@@ -193,12 +162,13 @@ async def add_photos_to_defect(
     summary="Изменение обнаруженного дефекта",
     description="Изменяет поля записи дефекта по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsVolunteer))
+        Depends(dependency=permission_dependency(permission=IsVolunteer)),
+        Depends(dependency=check_survey_defect_modification_access),
     ],
 )
 async def update_defect(
     defect_in: SurveyDefectUpdate,
-    defect_db: SurveyDefect = Depends(get_survey_defect_and_check_permissions),
+    defect_db: SurveyDefect = Depends(dependency=get_survey_defect_db),
     service: SurveyDefectService = Depends(),
 ) -> SurveyDefectRead:
     try:
@@ -219,11 +189,12 @@ async def update_defect(
     summary="Удаление конкретного дефекта",
     description="Удаляет дефект по идентификатору (id).",
     dependencies=[
-        Depends(dependency=permission_dependency(permission=IsCurator))
+        Depends(dependency=permission_dependency(permission=IsCurator)),
+        Depends(dependency=check_survey_defect_modification_access),
     ],
 )
 async def delete_defect(
-    defect_db: SurveyDefect = Depends(get_survey_defect_and_check_permissions),
+    defect_db: SurveyDefect = Depends(dependency=get_survey_defect_db),
     service: SurveyDefectService = Depends(),
 ) -> None:
     try:

@@ -41,6 +41,11 @@ class SurveyDefectRepository(
                 .selectinload(Survey.tree)
                 .selectinload(Tree.sector)
             )
+            .options(
+                selectinload(self.model.survey).selectinload(Survey.author)
+            )
+            .options(selectinload(self.model.defect_type))
+            .options(selectinload(self.model.photos))
             .where(self.model.survey_id == survey_id)
         )
         defects_db = await self.session.execute(statement=statement)
@@ -55,6 +60,10 @@ class SurveyDefectRepository(
                 .selectinload(Survey.tree)
                 .selectinload(Tree.sector)
             )
+            .options(
+                selectinload(self.model.survey).selectinload(Survey.author)
+            )
+            .options(selectinload(self.model.defect_type))
             .options(selectinload(self.model.photos))
             .where(self.model.id == id)
         )
@@ -72,6 +81,10 @@ class SurveyDefectRepository(
                 .selectinload(Survey.tree)
                 .selectinload(Tree.sector)
             )
+            .options(
+                selectinload(self.model.survey).selectinload(Survey.author)
+            )
+            .options(selectinload(self.model.defect_type))
             .options(selectinload(self.model.photos))
             .offset(offset=skip)
             .limit(limit=limit)
