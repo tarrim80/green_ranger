@@ -179,6 +179,13 @@ class ExceptionDetails:
     ALREADY_EXIST_TEAM_NAME = (
         "Команда волонтеров с таким названием уже существует"
     )
+    CANNOT_RESET_STATUS_FOR_OLD_SURVEY = (
+        "Только последнее обследование можно вернуть на рассмотрение "
+        "или доработку."
+    )
+    CANNOT_UPDATE_COMPLETED_SURVEYS = (
+        "Нельзя изменить завершённое обследование."
+    )
     FAILED_CREATE_DEFECT_TYPE = "Ошибка при создании вида дефекта"
     FAILED_CREATE_PHOTO = "Ошибка при создании и привязке фото"
     FAILED_CREATE_RECORD = "Ошибка при записи в базу данных"
@@ -217,6 +224,10 @@ class ExceptionDetails:
     NOT_FOUND_OR_NOT_ACTIVE_USER = "Пользователь не найден или неактивен"
     NOT_FOUND_SOME_USERS = "Не найдены один или несколько пользователей"
     REQUIRED_EXACTLY_ONE_LINK_ID = "Необходимо указать ровно один ID (вид дефекта, обследование или дефект)."
+    PREVIOUS_SURVEYS_NOT_COMPLETED = (
+        "Нельзя одобрить обследование, пока есть незавершённые "
+        "предыдущие записи."
+    )
     TREE_LOCATION_OUTSIDE_OF_SECTOR = (
         "Координаты дерева находятся вне границ указанного участка."
     )

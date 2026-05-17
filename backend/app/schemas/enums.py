@@ -27,6 +27,7 @@ class SurveyStatusEnum(StrEnum):
     NEEDS_CORRECTION = "На доработке"
     APPROVED = "Одобрено"
     REJECTED = "Отклонено"
+    # TODO: (Требует миграции) Добавить "Архивировано"
 
 
 class DefectStatusEnum(StrEnum):
@@ -37,4 +38,4 @@ class DefectStatusEnum(StrEnum):
     RESOLVED = "Устранён"
     NO_ACTION_NEEDED = "Не требует действий"
     ON_MONITORING = "На наблюдении"
-    # TODO: (Требует миграции) Добавить "Не подтверждён"
+    # TODO: (Требует миграции) Добавить "Не подтверждён" и "Архивирован"
