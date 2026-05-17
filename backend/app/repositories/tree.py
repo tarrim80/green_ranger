@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.constants import DEFAULT_LIMIT
 from app.core.db import get_async_session
 from app.core.exceptions import ExceptionDetails
-from app.models import Sector, Survey, Tree
+from app.models import Sector, Survey, SurveyDefect, Tree
 from app.repositories.base import BaseRepository
 from app.schemas import TreeCreate, TreeUpdate
 
@@ -45,6 +45,19 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
                     Survey.survey_defects
                 )
             )
+            .options(
+                selectinload(self.model.surveys)
+                .selectinload(Survey.survey_defects)
+                .selectinload(SurveyDefect.photos)
+            )
+            .options(
+                selectinload(self.model.surveys)
+                .selectinload(Survey.survey_defects)
+                .selectinload(SurveyDefect.defect_type)
+            )
+            .options(
+                selectinload(self.model.surveys).selectinload(Survey.author)
+            )
             .where(self.model.sector_id == sector_id)
         )
         return result.scalars().all()
@@ -65,6 +78,19 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
                 selectinload(self.model.surveys).selectinload(
                     Survey.survey_defects
                 )
+            )
+            .options(
+                selectinload(self.model.surveys)
+                .selectinload(Survey.survey_defects)
+                .selectinload(SurveyDefect.photos)
+            )
+            .options(
+                selectinload(self.model.surveys)
+                .selectinload(Survey.survey_defects)
+                .selectinload(SurveyDefect.defect_type)
+            )
+            .options(
+                selectinload(self.model.surveys).selectinload(Survey.author)
             )
             .where(self.model.id == id)
         )
@@ -88,6 +114,19 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
                 selectinload(self.model.surveys).selectinload(
                     Survey.survey_defects
                 )
+            )
+            .options(
+                selectinload(self.model.surveys)
+                .selectinload(Survey.survey_defects)
+                .selectinload(SurveyDefect.photos)
+            )
+            .options(
+                selectinload(self.model.surveys)
+                .selectinload(Survey.survey_defects)
+                .selectinload(SurveyDefect.defect_type)
+            )
+            .options(
+                selectinload(self.model.surveys).selectinload(Survey.author)
             )
             .offset(offset=skip)
             .limit(limit=limit)

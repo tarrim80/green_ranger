@@ -1,3 +1,5 @@
+from operator import attrgetter
+
 from fastapi import Depends
 from geoalchemy2.elements import WKTElement
 from shapely.geometry import shape
@@ -10,10 +12,10 @@ from app.core.exceptions import (
     TreeUpdatingError,
 )
 from app.core.transaction_manager import atomic_transaction
-from app.models import Sector, Tree
+from app.models import Sector, Survey, Tree
 from app.repositories.sector import SectorRepository
 from app.repositories.tree import TreeRepository
-from app.schemas import TreeCreateWithAuthor, TreeUpdate
+from app.schemas import SurveyStatusEnum, TreeCreateWithAuthor, TreeUpdate
 
 
 class TreeService:
@@ -63,7 +65,7 @@ class TreeService:
         return tree
 
     async def update_tree(self, obj_in: TreeUpdate, tree_db: Tree) -> Tree:
-        """Обновляет данные существующего растения с проверкой прав доступа."""
+        """Обновляет данные существующего растения."""
         update_data = obj_in.model_dump(exclude_unset=True)
         if location := update_data.get("location", None):
             shapely_point = shape(location)
@@ -83,6 +85,30 @@ class TreeService:
         if not tree:
             raise TreeUpdatingError(ExceptionDetails.FAILED_CREATE_RECORD)
         return tree
+
+    async def sync_state_tree_with_last_survey(
+        self, tree: Tree, survey: Survey
+    ) -> None:
+        """
+        Синхронизирует состояние растения
+        с последним проведённым обследованием.
+        """
+        if survey.survey_status != SurveyStatusEnum.APPROVED:
+            return
+        actual_survey = max(tree.surveys, key=attrgetter("created_at"))
+        if actual_survey.id != survey.id:
+            return
+        if all(
+            [
+                tree.condition == survey.condition,
+                tree.is_emergency == survey.is_emergency_report,
+            ]
+        ):
+            return
+
+        tree.condition = survey.condition
+        tree.is_emergency = survey.is_emergency_report
+        return
 
     async def delete_tree(self, tree_id: int) -> None:
         """Запрещает прямое удаление растения."""
