@@ -1,12 +1,9 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 
 from app.api.v1.dependencies import (
     check_sector_modification_access,
     get_sector_db,
-)
-from app.core.exceptions import (
-    SectorCreationError,
 )
 from app.core.permissions import (
     IsAdmin,
@@ -63,20 +60,14 @@ async def create_sector(
     service: SectorService = Depends(),
     current_user: User = Depends(current_user),
 ) -> SectorRead:
-    try:
-        if current_user.role == RoleEnum.CURATOR:
-            curator_id = current_user.id
-            sector_db = await service.create_sector(
-                sector_in=sector_in, curator_id=curator_id
-            )
-        else:
-            sector_db = await service.create_sector(sector_in=sector_in)
-        return SectorRead.model_validate(obj=sector_db)
-    except SectorCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+    if current_user.role == RoleEnum.CURATOR:
+        curator_id = current_user.id
+        sector_db = await service.create_sector(
+            sector_in=sector_in, curator_id=curator_id
         )
+    else:
+        sector_db = await service.create_sector(sector_in=sector_in)
+    return SectorRead.model_validate(obj=sector_db)
 
 
 @router.patch(

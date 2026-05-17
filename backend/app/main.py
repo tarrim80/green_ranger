@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.constants import SAFE_METHODS
 from app.api.routers import main_router
 from app.core.config import settings
+from app.core.exception_handlers import register_exception_handlers
 
 app = FastAPI(title=settings.app_title)
 
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(main_router)
+register_exception_handlers(app)
 
 
 def custom_openapi():

@@ -14,9 +14,18 @@ from app.core.permissions import (
     IsTreeCuratorOrCorrectTeam,
 )
 from app.core.user import current_user
-from app.models import Sector, Survey, SurveyDefect, Team, Tree, User
+from app.models import (
+    DefectType,
+    Sector,
+    Survey,
+    SurveyDefect,
+    Team,
+    Tree,
+    User,
+)
 from app.models.photo import Photo
 from app.repositories import (
+    DefectTypeRepository,
     PhotoRepository,
     SectorRepository,
     SurveyDefectRepository,
@@ -25,6 +34,22 @@ from app.repositories import (
     TreeRepository,
 )
 from app.schemas import RoleEnum, SurveyStatusEnum, TreeCreate
+
+
+async def get_defect_type_db(
+    defect_type_id: int,
+    defect_repo: DefectTypeRepository = Depends(),
+) -> DefectType:
+    """Получает вид дефекта по его идентификатору."""
+    defect_type_db = await defect_repo.get(id=defect_type_id)
+    if not defect_type_db:
+        raise NotFoundError(
+            ExceptionDetails.get_not_found_detail(
+                model_name=defect_repo.model.verbose_name(),
+                id=defect_type_id,
+            )
+        )
+    return defect_type_db
 
 
 async def get_tree_db(

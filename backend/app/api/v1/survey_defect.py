@@ -3,7 +3,6 @@ from fastapi import (
     Depends,
     File,
     Form,
-    HTTPException,
     UploadFile,
     status,
 )
@@ -13,14 +12,6 @@ from app.api.v1.dependencies import (
     check_survey_modification_access,
     get_survey_db,
     get_survey_defect_db,
-)
-from app.core.exceptions import (
-    ExceptionDetails,
-    NotFoundError,
-    PhotoCreationError,
-    SurveyDefectCreationError,
-    SurveyDefectRemovingError,
-    SurveyDefectUpdatingError,
 )
 from app.core.permissions import (
     IsCurator,
@@ -115,15 +106,10 @@ async def create_defect(
         description=description,
         defect_status=defect_status,
     )
-    try:
-        survey_defect_db = await service.create_with_photos(
-            survey_defect_in=survey_defect_in, files=files
-        )
-        return SurveyDefectRead.model_validate(obj=survey_defect_db)
-    except SurveyDefectCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+    survey_defect_db = await service.create_with_photos(
+        survey_defect_in=survey_defect_in, files=files
+    )
+    return SurveyDefectRead.model_validate(obj=survey_defect_db)
 
 
 @router.post(
@@ -143,17 +129,11 @@ async def add_photos_to_defect(
     defect: SurveyDefect = Depends(dependency=get_survey_defect_db),
     service: PhotoService = Depends(),
 ) -> list[PhotoRead]:
-    try:
-        photos = await service.upload_and_link_photos(
-            files=files,
-            survey_defect_id=defect.id,
-        )
-        return [PhotoRead.model_validate(photo) for photo in photos]
-    except PhotoCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"{ExceptionDetails.FAILED_CREATE_PHOTO} {e}",
-        )
+    photos = await service.upload_and_link_photos(
+        files=files,
+        survey_defect_id=defect.id,
+    )
+    return [PhotoRead.model_validate(photo) for photo in photos]
 
 
 @router.patch(
@@ -171,16 +151,11 @@ async def update_defect(
     defect_db: SurveyDefect = Depends(dependency=get_survey_defect_db),
     service: SurveyDefectService = Depends(),
 ) -> SurveyDefectRead:
-    try:
-        defect_update_db = await service.update_defect(
-            obj_in=defect_in,
-            defect_db=defect_db,
-        )
-        return SurveyDefectRead.model_validate(obj=defect_update_db)
-    except SurveyDefectUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    defect_update_db = await service.update_defect(
+        obj_in=defect_in,
+        defect_db=defect_db,
+    )
+    return SurveyDefectRead.model_validate(obj=defect_update_db)
 
 
 @router.delete(
@@ -197,9 +172,4 @@ async def delete_defect(
     defect_db: SurveyDefect = Depends(dependency=get_survey_defect_db),
     service: SurveyDefectService = Depends(),
 ) -> None:
-    try:
-        await service.delete_with_photos(defect_db=defect_db)
-    except SurveyDefectRemovingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    await service.delete_with_photos(defect_db=defect_db)

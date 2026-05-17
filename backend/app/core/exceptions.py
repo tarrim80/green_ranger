@@ -118,7 +118,7 @@ class TreeRemovingError(AppException):
     pass
 
 
-class PhotoCreationError(AppException):
+class PhotoUploadingError(AppException):
     """Исключение, возникающее при ошибке создания Фотографии/Изображения."""
 
     pass
@@ -187,7 +187,7 @@ class ExceptionDetails:
         "Нельзя изменить завершённое обследование."
     )
     FAILED_CREATE_DEFECT_TYPE = "Ошибка при создании вида дефекта"
-    FAILED_CREATE_PHOTO = "Ошибка при создании и привязке фото"
+    FAILED_UPLOAD_PHOTO = "Ошибка при загрузке и привязке фото"
     FAILED_CREATE_RECORD = "Ошибка при записи в базу данных"
     FAILED_UPDATE_RECORD = "Ошибка при изменении записи в базе данных"
     FAILED_CREATE_SURVEY = "Ошибка при создании обследования"

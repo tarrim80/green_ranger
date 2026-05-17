@@ -1,4 +1,4 @@
-from fastapi import Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, File, Form, UploadFile, status
 from fastapi.routing import APIRouter
 
 from app.api.v1.dependencies import (
@@ -8,16 +8,13 @@ from app.api.v1.dependencies import (
 )
 from app.core.exceptions import (
     ExceptionDetails,
-    PhotoCreationError,
+    NotAllowedError,
 )
 from app.core.permissions import (
     IsVolunteer,
     permission_dependency,
 )
-from app.core.user import current_user
-from app.models import Photo, User
-from app.repositories.survey import SurveyRepository
-from app.repositories.survey_defect import SurveyDefectRepository
+from app.models import Photo
 from app.schemas import PhotoRead
 from app.services.photo_service import PhotoService
 
@@ -47,9 +44,6 @@ async def upload_photos(
         default=None, json_schema_extra={"example": 1, "default": None}
     ),
     service: PhotoService = Depends(),
-    current_user: User = Depends(dependency=current_user),
-    survey_repo: SurveyRepository = Depends(),
-    defect_repo: SurveyDefectRepository = Depends(),
 ) -> list[PhotoRead]:
     provided_ids = [
         id_
@@ -57,24 +51,15 @@ async def upload_photos(
         if id_ is not None
     ]
     if len(provided_ids) != 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=ExceptionDetails.REQUIRED_EXACTLY_ONE_LINK_ID,
-        )
+        raise NotAllowedError(ExceptionDetails.REQUIRED_EXACTLY_ONE_LINK_ID)
 
-    try:
-        photos = await service.upload_and_link_photos(
-            files=files,
-            defect_type_id=defect_type_id,
-            survey_id=survey_id,
-            survey_defect_id=survey_defect_id,
-        )
-        return [PhotoRead.model_validate(photo) for photo in photos]
-    except PhotoCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"{ExceptionDetails.FAILED_CREATE_PHOTO} {e}",
-        )
+    photos = await service.upload_and_link_photos(
+        files=files,
+        defect_type_id=defect_type_id,
+        survey_id=survey_id,
+        survey_defect_id=survey_defect_id,
+    )
+    return [PhotoRead.model_validate(photo) for photo in photos]
 
 
 @router.delete(

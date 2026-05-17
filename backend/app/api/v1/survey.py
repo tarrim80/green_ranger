@@ -3,7 +3,6 @@ from fastapi import (
     Depends,
     File,
     Form,
-    HTTPException,
     UploadFile,
     status,
 )
@@ -14,11 +13,6 @@ from app.api.v1.dependencies import (
     get_survey_db,
     get_tree_from_form,
     resolve_survey_status,
-)
-from app.core.exceptions import (
-    SurveyCreationError,
-    SurveyRemovingError,
-    SurveyUpdatingError,
 )
 from app.core.permissions import (
     IsCurator,
@@ -124,16 +118,11 @@ async def create_survey(
         note=note,
         author_id=current_user.id,
     )
-    try:
-        survey_db = await service.create_with_photos(
-            survey_in=survey_in,
-            files=files,
-        )
-        return SurveyRead.model_validate(obj=survey_db)
-    except SurveyCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+    survey_db = await service.create_with_photos(
+        survey_in=survey_in,
+        files=files,
+    )
+    return SurveyRead.model_validate(obj=survey_db)
 
 
 @router.patch(
@@ -161,27 +150,22 @@ async def update_survey(
     ),
     service: SurveyService = Depends(),
 ) -> SurveyRead:
-    try:
-        survey_update_in = SurveyUpdate(
-            age=age,
-            height=height,
-            diameter=diameter,
-            trunk_count=trunk_count,
-            condition=condition,
-            is_emergency_report=is_emergency_report,
-            note=note,
-            survey_status=survey_status,
-        )
-        survey_update_db = await service.update_survey_with_photos(
-            survey_db=survey_db,
-            obj_in=survey_update_in,
-            files=files,
-        )
-        return SurveyRead.model_validate(obj=survey_update_db)
-    except SurveyUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    survey_update_in = SurveyUpdate(
+        age=age,
+        height=height,
+        diameter=diameter,
+        trunk_count=trunk_count,
+        condition=condition,
+        is_emergency_report=is_emergency_report,
+        note=note,
+        survey_status=survey_status,
+    )
+    survey_update_db = await service.update_survey_with_photos(
+        survey_db=survey_db,
+        obj_in=survey_update_in,
+        files=files,
+    )
+    return SurveyRead.model_validate(obj=survey_update_db)
 
 
 @router.delete(
@@ -199,10 +183,4 @@ async def delete_survey(
     survey_db: Survey = Depends(dependency=get_survey_db),
     service: SurveyService = Depends(),
 ) -> None:
-    try:
-        await service.delete_with_photos(survey_db=survey_db)
-    except SurveyRemovingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
+    await service.delete_with_photos(survey_db=survey_db)

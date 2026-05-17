@@ -1,11 +1,7 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 
 from app.api.v1.dependencies import get_team_db
-from app.core.exceptions import (
-    NotAllowedError,
-    TeamCreationError,
-)
 from app.core.permissions import IsAdmin, permission_dependency
 from app.models import Team
 from app.schemas import TeamCreate, TeamRead, TeamUpdate
@@ -51,19 +47,8 @@ async def create_team(
     team_in: TeamCreate,
     service: TeamService = Depends(),
 ) -> TeamRead:
-    try:
-        team_db = await service.create_team(team_in=team_in)
-        return TeamRead.model_validate(obj=team_db)
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail=str(e),
-        ) from e
-    except TeamCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+    team_db = await service.create_team(team_in=team_in)
+    return TeamRead.model_validate(obj=team_db)
 
 
 @router.patch(

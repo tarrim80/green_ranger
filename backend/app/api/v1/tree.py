@@ -1,15 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.v1.dependencies import (
     check_tree_creation_access,
     check_tree_modification_access,
     get_sector_from_body,
     get_tree_db,
-)
-from app.core.exceptions import (
-    NotAllowedError,
-    TreeCreationError,
-    TreeUpdatingError,
 )
 from app.core.permissions import (
     IsCurator,
@@ -83,23 +78,12 @@ async def create_tree(
     sector: Sector = Depends(dependency=get_sector_from_body),
     service: TreeService = Depends(),
 ) -> TreeRead:
-    try:
-        tree_with_author = TreeCreateWithAuthor(
-            **tree_in.model_dump(), author_id=current_user.id
-        )
+    tree_with_author = TreeCreateWithAuthor(
+        **tree_in.model_dump(), author_id=current_user.id
+    )
 
-        tree_db = await service.create_tree(
-            obj_in=tree_with_author, sector=sector
-        )
-        return TreeRead.model_validate(obj=tree_db)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(e)
-        ) from e
-    except TreeCreationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+    tree_db = await service.create_tree(obj_in=tree_with_author, sector=sector)
+    return TreeRead.model_validate(obj=tree_db)
 
 
 @router.patch(
@@ -113,20 +97,12 @@ async def create_tree(
     ],
 )
 async def update_tree(
-    tree_id: int,
     tree_in: TreeUpdate,
     tree_db: Tree = Depends(dependency=get_tree_db),
     service: TreeService = Depends(),
 ) -> TreeRead:
-    try:
-        tree_update_db = await service.update_tree(
-            obj_in=tree_in, tree_db=tree_db
-        )
-        return TreeRead.model_validate(obj=tree_update_db)
-    except TreeUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    tree_update_db = await service.update_tree(obj_in=tree_in, tree_db=tree_db)
+    return TreeRead.model_validate(obj=tree_update_db)
 
 
 @router.delete(
@@ -140,9 +116,4 @@ async def update_tree(
     ],
 )
 async def delete_tree(tree_id: int, service: TreeService = Depends()) -> None:
-    try:
-        await service.delete_tree(tree_id=tree_id)
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED, detail=str(e)
-        ) from e
+    await service.delete_tree(tree_id=tree_id)
