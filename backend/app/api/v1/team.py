@@ -1,14 +1,13 @@
-from fastapi import Body, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 
+from app.api.v1.dependencies import get_team_db
 from app.core.exceptions import (
     NotAllowedError,
-    NotFoundError,
     TeamCreationError,
-    TeamRemovingError,
-    TeamUpdatingError,
 )
 from app.core.permissions import IsAdmin, permission_dependency
+from app.models import Team
 from app.schemas import TeamCreate, TeamRead, TeamUpdate
 from app.services.team_service import TeamService
 
@@ -32,14 +31,10 @@ async def get_all_teams(service: TeamService = Depends()) -> list[TeamRead]:
     summary="Получение команды волонтеров",
     description="Показывает команду по ее идентификатору (id).",
 )
-async def get_team(team_id: int, service: TeamService = Depends()) -> TeamRead:
-    try:
-        team_db = await service.get_team(obj_id=team_id)
-        return TeamRead.model_validate(obj=team_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
+async def get_team(
+    team_db: Team = Depends(dependency=get_team_db),
+) -> TeamRead:
+    return TeamRead.model_validate(obj=team_db)
 
 
 @router.post(
@@ -59,11 +54,6 @@ async def create_team(
     try:
         team_db = await service.create_team(team_in=team_in)
         return TeamRead.model_validate(obj=team_db)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
     except NotAllowedError as e:
         raise HTTPException(
             status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
@@ -87,30 +77,14 @@ async def create_team(
     ],
 )
 async def update_team(
-    team_id: int, team_in: TeamUpdate, service: TeamService = Depends()
+    team_in: TeamUpdate,
+    team_db: Team = Depends(dependency=get_team_db),
+    service: TeamService = Depends(),
 ) -> TeamRead:
-    try:
-        team_update_db = await service.update_team(
-            team_id=team_id, team_in=team_in
-        )
-        return TeamRead.model_validate(obj=team_update_db)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
-        ) from e
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        ) from e
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        ) from e
-    except TeamUpdatingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+    team_update_db = await service.update_team(
+        team_db=team_db, team_in=team_in
+    )
+    return TeamRead.model_validate(obj=team_update_db)
 
 
 @router.delete(
@@ -123,21 +97,8 @@ async def update_team(
         Depends(dependency=permission_dependency(permission=IsAdmin))
     ],
 )
-async def delete_team(team_id: int, service: TeamService = Depends()) -> None:
-    try:
-        await service.delete_team(team_id=team_id)
-    except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-    except NotAllowedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail=str(e),
-        ) from e
-    except TeamRemovingError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
+async def delete_team(
+    team_db: Team = Depends(dependency=get_team_db),
+    service: TeamService = Depends(),
+) -> None:
+    await service.delete_team(team=team_db)

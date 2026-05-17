@@ -37,30 +37,13 @@ class TeamService:
         teams_db = await self.repo.get_multi()
         return list(teams_db)
 
-    async def get_team(self, obj_id: int) -> Team:
-        """Получает команду по ее идентификатору."""
-        team_db = await self.repo.get(id=obj_id)
-        if not team_db:
-            raise NotFoundError(
-                ExceptionDetails.get_not_found_detail(
-                    model_name=self.repo.model.verbose_name(),
-                    id=obj_id,
-                )
-            )
-        return team_db
-
     async def create_team(self, team_in: TeamCreate) -> Team:
         """Создает новую команду и привязывает к ней участников."""
         try:
             leader_id = team_in.leader_id
             leader = await self.user_repo.get(id=leader_id)
             if not leader:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.user_repo.model.verbose_name(),
-                        id=leader_id,
-                    )
-                )
+                raise TeamCreationError(ExceptionDetails.FAILED_CREATE_RECORD)
             member_ids = team_in.member_ids
 
             validate_leader_is_member(
@@ -82,7 +65,7 @@ class TeamService:
                     instance=new_team, attribute_names=["members", "leader"]
                 )
             return new_team
-        except (NotFoundError, NotAllowedError) as e:
+        except NotAllowedError as e:
             raise
         except Exception as e:
             if isinstance(e, IntegrityError):
@@ -142,18 +125,9 @@ class TeamService:
                 setattr(member, "team_id", None)
                 self.repo.session.add(instance=member)
 
-    async def update_team(self, team_id: int, team_in: TeamUpdate) -> Team:
+    async def update_team(self, team_db: Team, team_in: TeamUpdate) -> Team:
         """Обновляет данные существующей команды."""
         try:
-            team_db = await self.repo.get(id=team_id)
-            if not team_db:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=team_id,
-                    )
-                )
-
             team_update_data = team_in.model_dump(exclude_unset=True)
             new_member_ids = team_update_data.get("member_ids")
 
@@ -168,13 +142,9 @@ class TeamService:
             )
 
             if "leader_id" in team_update_data:
-                leader = await self.user_repo.get(id=final_leader_id)
-                if not leader:
-                    raise NotFoundError(
-                        ExceptionDetails.get_not_found_detail(
-                            model_name=self.user_repo.model.verbose_name(),
-                            id=final_leader_id,
-                        )
+                if not await self.user_repo.get(id=final_leader_id):
+                    raise TeamUpdatingError(
+                        ExceptionDetails.FAILED_UPDATE_RECORD
                     )
 
             validate_leader_is_member(
@@ -199,7 +169,7 @@ class TeamService:
                     attribute_names=["members", "leader"],
                 )
             return team_updated
-        except (ValueError, NotFoundError, NotAllowedError) as e:
+        except (ValueError, NotAllowedError) as e:
             raise
         except Exception as e:
             if isinstance(e, IntegrityError):
@@ -210,17 +180,9 @@ class TeamService:
                 f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
             )
 
-    async def delete_team(self, team_id: int) -> None:
+    async def delete_team(self, team: Team) -> None:
         """Удаляет команду с проверкой на наличие участников."""
         try:
-            team = await self.repo.get(id=team_id)
-            if not team:
-                raise NotFoundError(
-                    ExceptionDetails.get_not_found_detail(
-                        model_name=self.repo.model.verbose_name(),
-                        id=team_id,
-                    )
-                )
             if len(team.members) > 1:
                 raise NotAllowedError(
                     ExceptionDetails.NOT_ALLOWED_REMOVE_TEAM_WITH_USERS
@@ -234,8 +196,8 @@ class TeamService:
                 if team.members:
                     setattr(team.members[0], "team_id", None)
                     self.repo.session.add(instance=team.members[0])
-                await self.repo.remove(id=team_id)
-        except (NotFoundError, NotAllowedError) as e:
+                await self.repo.remove(id=team.id)
+        except NotAllowedError as e:
             raise
         except Exception as e:
             raise TeamRemovingError(
