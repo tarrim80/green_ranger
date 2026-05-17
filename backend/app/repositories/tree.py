@@ -133,14 +133,12 @@ class TreeRepository(BaseRepository[Tree, TreeCreate, TreeUpdate]):
         )
         return result.scalars().all()
 
-    async def validate_location_in_sector(
+    async def check_location_in_sector(
         self, wkt_location, sector: Sector
-    ) -> None:
+    ) -> bool:
         """
         Проверяет что местоположение растения входит в обозначенный участок.
         """
         stmt = select(ST_Contains(sector.geometry, wkt_location))
         result = await self.session.execute(stmt)
-        is_contained = result.scalar()
-        if not is_contained:
-            raise ValueError(ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR)
+        return bool(result.scalar())

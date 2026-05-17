@@ -52,13 +52,23 @@ class TreeService:
             tree_data["location"] = WKTElement(
                 shapely_point.wkt, srid=SRID_MERCATOR_WGS84
             )
-            await self.repo.validate_location_in_sector(
+            is_contained = await self.repo.check_location_in_sector(
                 wkt_location=tree_data["location"], sector=sector
             )
-        async with atomic_transaction(session=self.repo.session):
-            new_tree = self.repo.model(**tree_data)
-            self.repo.session.add(instance=new_tree)
-            await self.repo.session.flush()
+            if not is_contained:
+                raise ValueError(
+                    ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR
+                )
+
+        try:
+            async with atomic_transaction(session=self.repo.session):
+                new_tree = self.repo.model(**tree_data)
+                self.repo.session.add(instance=new_tree)
+                await self.repo.session.flush()
+        except Exception as e:
+            raise TreeCreationError(
+                f"{ExceptionDetails.FAILED_CREATE_RECORD}: {e}"
+            )
         tree = await self.repo.get(id=new_tree.id)
         if not tree:
             raise TreeCreationError(ExceptionDetails.FAILED_CREATE_RECORD)
@@ -72,18 +82,28 @@ class TreeService:
             wkt_location = WKTElement(
                 shapely_point.wkt, srid=SRID_MERCATOR_WGS84
             )
-            await self.repo.validate_location_in_sector(
+            is_contained = await self.repo.check_location_in_sector(
                 wkt_location=wkt_location, sector=tree_db.sector
             )
+            if not is_contained:
+                raise ValueError(
+                    ExceptionDetails.TREE_LOCATION_OUTSIDE_OF_SECTOR
+                )
             update_data["location"] = wkt_location
-        async with atomic_transaction(session=self.repo.session):
-            for field, value in update_data.items():
-                setattr(tree_db, field, value)
-            self.repo.session.add(instance=tree_db)
-            await self.repo.session.flush()
+
+        try:
+            async with atomic_transaction(session=self.repo.session):
+                for field, value in update_data.items():
+                    setattr(tree_db, field, value)
+                self.repo.session.add(instance=tree_db)
+                await self.repo.session.flush()
+        except Exception as e:
+            raise TreeUpdatingError(
+                f"{ExceptionDetails.FAILED_UPDATE_RECORD}: {e}"
+            )
         tree = await self.repo.get(id=tree_db.id)
         if not tree:
-            raise TreeUpdatingError(ExceptionDetails.FAILED_CREATE_RECORD)
+            raise TreeUpdatingError(ExceptionDetails.FAILED_UPDATE_RECORD)
         return tree
 
     async def sync_state_tree_with_last_survey(

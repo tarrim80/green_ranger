@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.validators import validate_photo_links
+from app.services.validators import validate_photo_links
 from app.core.db import get_async_session
 from app.models import Photo
 from app.models import Survey, Tree, SurveyDefect

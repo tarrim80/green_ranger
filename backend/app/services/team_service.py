@@ -1,7 +1,7 @@
 from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
 
-from app.api.validators import (
+from app.services.validators import (
     validate_leader_is_member,
     validate_user_is_free_for_team,
 )

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.api.validators import validate_photo_links
+from app.services.validators import validate_photo_links
 
 PHOTO_FIELDS_CONFIG = {
     "id": [Field(description="Уникальный идентификатор", examples=[1, 2, 3])],
@@ -64,7 +64,7 @@ class PhotoCreate(PhotoBase):
 
     @model_validator(mode="after")
     def check_links(self) -> "PhotoCreate":
-        validate_photo_links(self.__dict__)
+        validate_photo_links(self.model_dump())
         return self
 
 

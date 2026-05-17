@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.api.validators import validate_leader_is_member
+from app.services.validators import validate_leader_is_member
 from app.schemas.sector import SectorShortRead
 from app.schemas.user import UserShortRead
 
